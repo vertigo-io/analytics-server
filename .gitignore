@@ -1,0 +1,12 @@
+bin/
+trash/
+target/
+.classpath
+.project
+.settings/
+*.iml
+*.idea
+.metadata/*
+.factorypath
+.vscode/
+*.log
