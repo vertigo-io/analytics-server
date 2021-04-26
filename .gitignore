@@ -9,4 +9,3 @@ target/
 .metadata/*
 .factorypath
 .vscode/
-*.log
