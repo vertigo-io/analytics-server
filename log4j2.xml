@@ -14,9 +14,9 @@
 			</Policies>
 			<DefaultRolloverStrategy max="50" />
 		</RollingFile>
-		<InfluxdbProcess name="InfluxdbProcess" serverUrl="*" login="analytica" password="*" />
-		<InfluxdbMetric name="InfluxdbMetric" serverUrl="*" login="*" password="*" />
-		<InfluxdbHealth name="InfluxdbHealth" serverUrl="*" login="*" password="*" />
+		<InfluxdbProcess name="InfluxdbProcess" serverUrl="*" token="*" org="*" />
+		<InfluxdbMetric name="InfluxdbMetric" serverUrl="*" token="*" org="*" />
+		<InfluxdbHealth name="InfluxdbHealth" serverUrl="*" token="*" org="*" />
 	</Appenders>
 	<Loggers>
 		<Logger name="analytics-health" level="info" additivity="false">

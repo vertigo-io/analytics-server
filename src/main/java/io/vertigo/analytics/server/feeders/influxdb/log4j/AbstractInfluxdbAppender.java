@@ -7,14 +7,13 @@ import java.util.List;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.spi.ErrorCode;
 import org.apache.log4j.spi.LoggingEvent;
-import org.influxdb.InfluxDB;
-import org.influxdb.InfluxDBFactory;
-import org.influxdb.dto.BatchPoints;
-import org.influxdb.dto.Point;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.write.Point;
 
 import io.vertigo.analytics.server.LogMessage;
 
@@ -22,17 +21,18 @@ abstract class AbstractInfluxdbAppender<O> extends AppenderSkeleton {
 
 	//Appender params
 	private String serverUrl;
-	private String login;
-	private String password;
+	private String token;
+	private String org;
+	private String orgId;
 
 	private static final Gson GSON = new GsonBuilder().create();
 
-	private InfluxDB influxDB;
+	private InfluxDBClient influxDBClient;
 
 	@Override
 	public void close() {
-		if (influxDB != null) {
-			influxDB.close();
+		if (influxDBClient != null) {
+			influxDBClient.close();
 		}
 
 	}
@@ -48,15 +48,11 @@ abstract class AbstractInfluxdbAppender<O> extends AppenderSkeleton {
 		if (event.getMessage() instanceof String) {
 			try {
 				final LogMessage<O> logMessage = GSON.fromJson((String) event.getMessage(), getLogMessageType());
-				final InfluxDB db = getDB();
-				if (!db.describeDatabases().contains(logMessage.getAppName())) {
-					db.createDatabase(logMessage.getAppName());
+				final InfluxDBClient db = getClient();
+				if (!db.getBucketsApi().findBuckets().stream().anyMatch(bucket -> bucket.getName().equals(logMessage.getAppName()))) {
+					db.getBucketsApi().createBucket(logMessage.getAppName(), orgId);
 				}
-				final BatchPoints.Builder batchPointsBuilder = BatchPoints.database(logMessage.getAppName())
-						.retentionPolicy("autogen");
-				eventToPoints(logMessage.getEvent(), logMessage.getHost())
-						.forEach(batchPointsBuilder::point);
-				db.write(batchPointsBuilder.build());
+				db.getWriteApi().writePoints(logMessage.getAppName(), getOrg(), eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 				//db.write(logMessage.getAppName(), "autogen", eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 			} catch (final JsonSyntaxException e) {
 				// it wasn't a message for us so we do nothing
@@ -93,11 +89,12 @@ abstract class AbstractInfluxdbAppender<O> extends AppenderSkeleton {
 		};
 	}
 
-	private InfluxDB getDB() {
-		if (influxDB == null) {
-			influxDB = InfluxDBFactory.connect(getServerUrl(), getLogin(), getPassword());
+	private InfluxDBClient getClient() {
+		if (influxDBClient == null) {
+			influxDBClient = InfluxDBClientFactory.create(getServerUrl(), getToken().toCharArray(), getOrg());
+			orgId = influxDBClient.getOrganizationsApi().findOrganizations().stream().filter(org -> org.getName().equals(getOrg())).findFirst().get().getId();
 		}
-		return influxDB;
+		return influxDBClient;
 	}
 
 	// getters setters (log4j way)
@@ -110,20 +107,20 @@ abstract class AbstractInfluxdbAppender<O> extends AppenderSkeleton {
 		this.serverUrl = serverUrl;
 	}
 
-	public String getLogin() {
-		return login;
+	public String getToken() {
+		return token;
 	}
 
-	public void setLogin(final String login) {
-		this.login = login;
+	public void setToken(final String token) {
+		this.token = token;
 	}
 
-	public String getPassword() {
-		return password;
+	public String getOrg() {
+		return org;
 	}
 
-	public void setPassword(final String password) {
-		this.password = password;
+	public void setOrg(final String org) {
+		this.org = org;
 	}
 
 }

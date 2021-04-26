@@ -1,15 +1,16 @@
 package io.vertigo.analytics.server.feeders.influxdb;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.influxdb.dto.Point;
+import com.influxdb.client.domain.WritePrecision;
+import com.influxdb.client.write.Point;
 
 import io.vertigo.analytics.server.events.health.HealthCheck;
 import io.vertigo.analytics.server.events.metric.Metric;
@@ -30,7 +31,7 @@ public class InfluxdbUtil {
 		final String messageToStore = message != null ? message : "";
 
 		return Collections.singletonList(Point.measurement("healthcheck")
-				.time(healthCheck.getCheckInstant().toEpochMilli(), TimeUnit.MILLISECONDS)
+				.time(healthCheck.getCheckInstant(), WritePrecision.MS)
 				.addField("location", host)
 				.addField("name", healthCheck.getName())
 				.addField("checker", healthCheck.getChecker())
@@ -38,13 +39,12 @@ public class InfluxdbUtil {
 				.addField("feature", healthCheck.getFeature())
 				.addField("status", healthCheck.getMeasure().getStatus().getNumericValue())
 				.addField("message", messageToStore)
-				.tag("location", host)
-				.tag("name", healthCheck.getName())
-				.tag("checker", healthCheck.getChecker())
-				.tag("module", healthCheck.getModule())
-				.tag("feature", healthCheck.getFeature())
-				.tag("status", String.valueOf(healthCheck.getMeasure().getStatus().getNumericValue()))
-				.build());
+				.addTag("location", host)
+				.addTag("name", healthCheck.getName())
+				.addTag("checker", healthCheck.getChecker())
+				.addTag("module", healthCheck.getModule())
+				.addTag("feature", healthCheck.getFeature())
+				.addTag("status", String.valueOf(healthCheck.getMeasure().getStatus().getNumericValue())));
 	}
 
 	public static List<Point> metricToPoints(final Metric metric, final String host) {
@@ -53,18 +53,17 @@ public class InfluxdbUtil {
 		final String moduleToStore = module != null ? module : "";
 
 		return Collections.singletonList(Point.measurement("metric")
-				.time(metric.getMeasureInstant().toEpochMilli(), TimeUnit.MILLISECONDS)
+				.time(metric.getMeasureInstant(), WritePrecision.MS)
 				.addField("location", host)
 				.addField("name", metric.getName())
 				.addField("module", moduleToStore)
 				.addField("feature", metric.getFeature())
 				.addField("value", metric.getValue())
-				.tag("location", host)
-				.tag("name", metric.getName())
-				.tag("module", moduleToStore)
-				.tag("feature", metric.getFeature())
-				.tag("value", String.valueOf(metric.getValue()))
-				.build());
+				.addTag("location", host)
+				.addTag("name", metric.getName())
+				.addTag("module", moduleToStore)
+				.addTag("feature", metric.getFeature())
+				.addTag("value", String.valueOf(metric.getValue())));
 	}
 
 	public static List<Point> processToPoints(final AProcess process, final String host) {
@@ -91,18 +90,17 @@ public class InfluxdbUtil {
 						entry -> properString(entry.getValue())));
 
 		return Point.measurement(process.getCategory())
-				.time(process.getStart(), TimeUnit.MILLISECONDS)
-				.tag(TAG_NAME, properString(process.getName()))
-				.tag(TAG_LOCATION, host)
-				.tag(properedTags)
+				.time(Instant.ofEpochMilli(process.getStart()), WritePrecision.MS)
+				.addTag(TAG_NAME, properString(process.getName()))
+				.addTag(TAG_LOCATION, host)
+				.addTags(properedTags)
 				.addField("duration", process.getDurationMillis())
 				.addField("subprocesses", process.getSubProcesses().size())
 				.addField("name", properString(process.getName()))
 				.addField("inner_duration", innerDuration)
-				.fields(countFields)
-				.fields(durationFields)
-				.fields((Map) process.getMeasures())
-				.build();
+				.addFields(countFields)
+				.addFields(durationFields)
+				.addFields((Map) process.getMeasures());
 	}
 
 	private static VisitState flatProcess(final AProcess process, final Stack<String> upperCategory, final List<Point> points, final String host) {

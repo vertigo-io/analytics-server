@@ -10,9 +10,9 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import io.javalin.Javalin;
 import io.vertigo.analytics.server.LogMessage;
 import io.vertigo.analytics.server.events.process.AProcess;
-import spark.Spark;
 
 public class HttpProcessInflux {
 
@@ -21,7 +21,7 @@ public class HttpProcessInflux {
 	private static final Logger logger = LogManager.getLogger(HttpProcessInflux.class);
 
 	public static void start() {
-		Spark.port(8080);
+		final Javalin app = Javalin.create().start(7000);
 		final Type logMessageType = new ParameterizedType() {
 
 			@Override
@@ -40,16 +40,16 @@ public class HttpProcessInflux {
 			}
 		};
 
-		Spark.post("/process/_send", (req, res) -> {
+		app.post("/process/_send", (ctx) -> {
 			try {
-				gson.fromJson(req.body(), logMessageType);
+				gson.fromJson(ctx.body(), logMessageType);
 			} catch (final Exception e) {
-				res.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-				return e.getMessage();
+				ctx.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				ctx.result(e.getMessage());
 			}
-			logger.info(req.body()); // re route to existing appender
-			res.status(HttpServletResponse.SC_NO_CONTENT);
-			return "";
+			logger.info(ctx.body()); // re route to existing appender
+			ctx.status(HttpServletResponse.SC_NO_CONTENT);
+			ctx.result("");
 		});
 
 	}

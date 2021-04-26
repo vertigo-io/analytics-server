@@ -3,7 +3,7 @@ package io.vertigo.analytics.server.feeders.influxdb.log4j;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import org.influxdb.dto.Point;
+import com.influxdb.client.write.Point;
 
 import io.vertigo.analytics.server.events.health.HealthCheck;
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
