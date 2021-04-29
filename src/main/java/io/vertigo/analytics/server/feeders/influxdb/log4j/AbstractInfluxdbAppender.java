@@ -52,7 +52,7 @@ abstract class AbstractInfluxdbAppender<O> extends AppenderSkeleton {
 				if (!db.getBucketsApi().findBuckets().stream().anyMatch(bucket -> bucket.getName().equals(logMessage.getAppName()))) {
 					db.getBucketsApi().createBucket(logMessage.getAppName(), orgId);
 				}
-				db.getWriteApi().writePoints(logMessage.getAppName(), getOrg(), eventToPoints(logMessage.getEvent(), logMessage.getHost()));
+				db.getWriteApiBlocking().writePoints(logMessage.getAppName(), getOrg(), eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 				//db.write(logMessage.getAppName(), "autogen", eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 			} catch (final JsonSyntaxException e) {
 				// it wasn't a message for us so we do nothing
