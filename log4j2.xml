@@ -1,39 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="TRACE"
-	packages="io.vertigo.analytics.server.feeders.influxdb.log4j2">
+<Configuration status="TRACE" packages="io.vertigo.analytics.server.feeders.influxdb.log4j2">
 	<Appenders>
 		<Console name="Console" target="SYSTEM_OUT">
 			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
 		</Console>
-		<RollingFile name="RollingFile" fileName="analytics_events.log" filePattern="analytics_events-%i.log">
-			<PatternLayout>
-				<Pattern>%m %n</Pattern>
-			</PatternLayout>
-			<Policies>
-				<SizeBasedTriggeringPolicy size="100 MB" />
-			</Policies>
-			<DefaultRolloverStrategy max="50" />
-		</RollingFile>
-		<InfluxdbProcess name="InfluxdbProcess" serverUrl="*" token="*" org="*" />
-		<InfluxdbMetric name="InfluxdbMetric" serverUrl="*" token="*" org="*" />
-		<InfluxdbHealth name="InfluxdbHealth" serverUrl="*" token="*" org="*" />
+		<InfluxdbProcess name="InfluxdbProcess" serverUrl="http://localhost:8086" token="*" org="vertigo" />
+		<InfluxdbMetric name="InfluxdbMetric" serverUrl="http://localhost:8086" token="*" org="vertigo" />
+		<InfluxdbHealth name="InfluxdbHealth" serverUrl="http://localhost:8086" token="*" org="vertigo" />
 	</Appenders>
 	<Loggers>
 		<Logger name="vertigo-analytics-health" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbHealth" />
-			<AppenderRef ref="RollingFile" />
+			<AppenderRef ref="Console" />
 		</Logger>
 		<Logger name="vertigo-analytics-metric" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbMetric" />
-			<AppenderRef ref="RollingFile" />
+			<AppenderRef ref="Console" />
 		</Logger>
 		<Logger name="vertigo-analytics-process" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbProcess" />
-			<AppenderRef ref="RollingFile" />
 			<AppenderRef ref="Console" />
 		</Logger>
 		<Root level="info">
-			<AppenderRef ref="RollingFile" />
 			<AppenderRef ref="Console" />
 		</Root>
 	</Loggers>

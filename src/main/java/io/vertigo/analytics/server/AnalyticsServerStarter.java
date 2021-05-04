@@ -36,8 +36,8 @@ public class AnalyticsServerStarter {
 					isLog4jEnabled = true;
 					break;
 				case "log4j2":
-					final TcpSocketServer javaSerializedTcpSocketServer = TcpSocketServer.createSerializedSocketServer(Integer.parseInt(port));
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
+					final TcpSocketServer javaSerializedTcpSocketServer = TcpSocketServer.createSerializedSocketServer(Integer.parseInt(port));
 					javaSerializedTcpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;
