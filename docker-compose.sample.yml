@@ -7,22 +7,22 @@ version: '3.5'
 
 services:  
   influxdb:
-    image: influxdb
+    image: influxdb:2.0
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=vertigo
       - DOCKER_INFLUXDB_INIT_PASSWORD=vertigo-password
       - DOCKER_INFLUXDB_INIT_ORG=vertigo
       - DOCKER_INFLUXDB_INIT_BUCKET=myApp
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=Vl9r3iVWH4A2mS6E40niU1kt7pCjF_FGKcYimDMrFRzyHhyVUFh0CtBkbAwb3-OQyjCKlgvA8nLnZXXCkavorg==
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=is4DQpHF8XkvNJRm5KNJOtjlKIpfVc2G
     ports: 
       - "8086:8086"
     restart: unless-stopped
   analytics:
-    image: vertigo-analytics-server
+    image: vertigoio/vertigo-analytics-server
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=Vl9r3iVWH4A2mS6E40niU1kt7pCjF_FGKcYimDMrFRzyHhyVUFh0CtBkbAwb3-OQyjCKlgvA8nLnZXXCkavorg==
+      - INFLUXDB_TOKEN=is4DQpHF8XkvNJRm5KNJOtjlKIpfVc2G
     depends_on:
       - influxdb
     ports:
