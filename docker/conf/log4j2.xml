@@ -12,15 +12,12 @@
 	<Loggers>
 		<Logger name="vertigo-analytics-health" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbHealth" />
-			<AppenderRef ref="RollingFile" />
 		</Logger>
 		<Logger name="vertigo-analytics-metric" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbMetric" />
-			<AppenderRef ref="RollingFile" />
 		</Logger>
 		<Logger name="vertigo-analytics-process" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbProcess" />
-			<AppenderRef ref="RollingFile" />
 			<AppenderRef ref="Console" />
 		</Logger>
 		<Root level="info">
