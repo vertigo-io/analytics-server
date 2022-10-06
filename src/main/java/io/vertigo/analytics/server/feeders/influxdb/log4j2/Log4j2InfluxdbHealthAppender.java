@@ -15,8 +15,8 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
 import com.influxdb.client.write.Point;
 
-import io.vertigo.analytics.server.events.health.HealthCheck;
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
+import io.vertigo.core.analytics.health.HealthCheck;
 
 @Plugin(name = "InfluxdbHealth", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
 public class Log4j2InfluxdbHealthAppender extends AbstractLog4j2InfluxdbAppender<HealthCheck> {

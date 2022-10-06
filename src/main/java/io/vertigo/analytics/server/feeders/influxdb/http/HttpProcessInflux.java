@@ -12,7 +12,7 @@ import com.google.gson.Gson;
 
 import io.javalin.Javalin;
 import io.vertigo.analytics.server.LogMessage;
-import io.vertigo.analytics.server.events.process.AProcess;
+import io.vertigo.core.analytics.process.AProcess;
 
 public class HttpProcessInflux {
 

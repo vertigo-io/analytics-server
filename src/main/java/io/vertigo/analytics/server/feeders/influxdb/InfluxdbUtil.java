@@ -12,9 +12,10 @@ import java.util.stream.Collectors;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 
-import io.vertigo.analytics.server.events.health.HealthCheck;
-import io.vertigo.analytics.server.events.metric.Metric;
-import io.vertigo.analytics.server.events.process.AProcess;
+import io.vertigo.core.analytics.health.HealthCheck;
+import io.vertigo.core.analytics.health.HealthStatus;
+import io.vertigo.core.analytics.metric.Metric;
+import io.vertigo.core.analytics.process.AProcess;
 
 public class InfluxdbUtil {
 
@@ -37,14 +38,14 @@ public class InfluxdbUtil {
 				.addField("checker", healthCheck.getChecker())
 				.addField("module", healthCheck.getModule())
 				.addField("feature", healthCheck.getFeature())
-				.addField("status", healthCheck.getMeasure().getStatus().getNumericValue())
+				.addField("status", getNumericValue(healthCheck.getMeasure().getStatus()))
 				.addField("message", messageToStore)
 				.addTag("location", host)
 				.addTag("name", healthCheck.getName())
 				.addTag("checker", healthCheck.getChecker())
 				.addTag("module", healthCheck.getModule())
 				.addTag("feature", healthCheck.getFeature())
-				.addTag("status", String.valueOf(healthCheck.getMeasure().getStatus().getNumericValue())));
+				.addTag("status", String.valueOf(getNumericValue(healthCheck.getMeasure().getStatus()))));
 	}
 
 	public static List<Point> metricToPoints(final Metric metric, final String host) {
@@ -70,6 +71,19 @@ public class InfluxdbUtil {
 		final List<Point> points = new ArrayList<>();
 		flatProcess(process, new Stack<>(), points, host);
 		return points;
+	}
+
+	private static int getNumericValue(final HealthStatus status) {
+		switch (status) {
+			case RED:
+				return 0;
+			case YELLOW:
+				return 1;
+			case GREEN:
+				return 2;
+			default:
+				throw new RuntimeException("Unkown satus : " + status);
+		}
 	}
 
 	private static Point processToPoint(final AProcess process, final VisitState visitState, final String host) {
