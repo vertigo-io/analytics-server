@@ -1,8 +1,16 @@
 package io.vertigo.analytics.server;
 
 import java.io.IOException;
+import java.util.Optional;
+
+import javax.net.ssl.KeyManagerFactory;
 
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.core.net.ssl.KeyStoreConfiguration;
+import org.apache.logging.log4j.core.net.ssl.SslConfiguration;
+import org.apache.logging.log4j.core.net.ssl.StoreConfigurationException;
+import org.apache.logging.log4j.core.net.ssl.TrustStoreConfiguration;
+import org.apache.logging.log4j.server.SecureTcpSocketServer;
 import org.apache.logging.log4j.server.TcpSocketServer;
 
 import io.kinetix.analytics.server.AnalyticsTcpServer;
@@ -15,6 +23,7 @@ import io.vertigo.core.node.config.BootConfig;
 import io.vertigo.core.node.config.NodeConfig;
 import io.vertigo.core.param.Param;
 import io.vertigo.core.plugins.param.env.EnvParamPlugin;
+import io.vertigo.core.plugins.resource.url.URLResourceResolverPlugin;
 import io.vertigo.dashboard.DashboardFeatures;
 import io.vertigo.database.DatabaseFeatures;
 import io.vertigo.datamodel.DataModelFeatures;
@@ -31,8 +40,9 @@ public class AnalyticsServerStarter {
 	 * @param args
 	 * @throws IOException
 	 * @throws NumberFormatException
+	 * @throws StoreConfigurationException
 	 */
-	public static void main(final String[] args) throws NumberFormatException, IOException {
+	public static void main(final String[] args) throws NumberFormatException, IOException, StoreConfigurationException {
 		if (args.length == 0 && args.length % 3 != 0) {
 			throw new RuntimeException("You must provide three params");
 		}
@@ -50,8 +60,23 @@ public class AnalyticsServerStarter {
 					break;
 				case "log4j2json":
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
-					final TcpSocketServer jsonTcpSocketServer = TcpSocketServer.createJsonSocketServer(Integer.parseInt(port));
-					jsonTcpSocketServer.startNewThread();
+					final TcpSocketServer jsoncpSocketServer = TcpSocketServer.createJsonSocketServer(Integer.parseInt(port));
+					jsoncpSocketServer.startNewThread();
+					isLog4jEnabled = true;
+					break;
+				case "log4j2jsonSsl":
+					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
+					final var keyStoreUrl = Optional.ofNullable(System.getenv("KEYSTORE_URL")).orElse("/opt/analytics/ssl/keystore.p12");
+					final var trustStoreUrlOpt = Optional.ofNullable(System.getenv("TRUSTSTORE_URL"));
+					final TcpSocketServer jsonSSlTcpSocketServer = SecureTcpSocketServer.createJsonServer(Integer.parseInt(port),
+							SslConfiguration.createSSLConfiguration(
+									"TLSv1.2",
+									KeyStoreConfiguration.createKeyStoreConfiguration(keyStoreUrl, null, "KEYSTORE_PASSWORD", null, "PKCS12", KeyManagerFactory
+											.getDefaultAlgorithm()),
+									trustStoreUrlOpt.isPresent() ? TrustStoreConfiguration.createKeyStoreConfiguration(trustStoreUrlOpt.get(), null, "TRUSTSTORE_PASSWORD", null, "PKCS12", KeyManagerFactory
+											.getDefaultAlgorithm()) : null,
+									false));
+					jsonSSlTcpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;
 				case "log4net":
@@ -59,19 +84,39 @@ public class AnalyticsServerStarter {
 					final AnalyticsTcpServer ats = new AnalyticsTcpServer();
 					ats.start(Integer.parseInt(port));
 					break;
+				case "localUi":
+					try (AutoCloseableNode node = new AutoCloseableNode(buildNodeConfig(port))) {
+						try {
+							Thread.currentThread().join();
+						} catch (final InterruptedException e) {
+							//nothing
+						}
+					}
 				default:
 					break;
 			}
 		}
+		// at least one is started
+		if (isLog4jEnabled) {
+			HttpProcessInflux.start();
+		}
 
-		final var nodeConfig = NodeConfig.builder()
+	}
+
+	private static NodeConfig buildNodeConfig(final String port) {
+		return NodeConfig.builder()
 				.withBoot(BootConfig.builder()
 						.withLocales("fr_FR")
 						.addPlugin(EnvParamPlugin.class)
+						.addPlugin(URLResourceResolverPlugin.class)
 						.build())
 				.addModule(new JavalinFeatures()
 						.withEmbeddedServer(
-								Param.of("port", "${SERVER_PORT}"))
+								Param.of("port", port),
+								Param.of("ssl", "true"),
+								Param.of("keyStoreUrl", "${KEYSTORE_URL}"),
+								Param.of("keyStorePassword", "${KEYSTORE_PASSWORD}"),
+								Param.of("sslKeyAlias", "${SSL_KEY_ALIAS}"))
 						.build())
 				.addModule(new InfluxDbFeatures()
 						.withInfluxDb(
@@ -96,20 +141,6 @@ public class AnalyticsServerStarter {
 								Param.of("appName", "${APP_NAME}"))
 						.build())
 				.build();
-
-		try (AutoCloseableNode node = new AutoCloseableNode(nodeConfig)) {
-			try {
-				Thread.currentThread().join();
-			} catch (final InterruptedException e) {
-				//nothing
-			}
-		}
-
-		// at least one is started
-		if (isLog4jEnabled) {
-			HttpProcessInflux.start();
-		}
-
 	}
 
 }
