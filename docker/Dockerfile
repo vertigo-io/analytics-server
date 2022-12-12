@@ -1,5 +1,6 @@
-FROM eclipse-temurin:11-jre
-COPY ./bin/vertigo-analytics-server-0.8-jar-with-dependencies.jar /usr/app/bin/
+FROM eclipse-temurin:11-jre-alpine
+RUN apk add --no-cache bash
+COPY ./bin/vertigo-analytics-server-0.9-jar-with-dependencies.jar /usr/app/bin/
 COPY ./bin/wait-for-it.sh /usr/app/bin/
 COPY ./bin/start.sh /usr/app/bin/
 COPY ./conf/log4j2.xml /usr/app/conf/
