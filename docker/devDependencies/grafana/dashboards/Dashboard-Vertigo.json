@@ -1,0 +1,3479 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 12,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Vertigo.io",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://vertigo.io/"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 0,
+        "y": 0
+      },
+      "id": 22,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"date\"\r\n\r\nminus3m = date.sub(d: 3m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start:minus3m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" and r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "hits per minutes",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "hidden",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-green",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 60
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "orange",
+                "value": 180
+              },
+              {
+                "color": "red",
+                "value": 240
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hitPerSecond"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    0,
+                    10
+                  ],
+                  "fill": "dot"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "hits/min"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 8,
+        "x": 2,
+        "y": 0
+      },
+      "id": 21,
+      "maxDataPoints": 100,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> window(every: $__interval, timeColumn:\"_stop\")\r\n|> max()\r\n|> toFloat()\r\n|> group()\r\n|> map(fn: (r) => ({ r with hitPerSecond:r._value/60.0 }))\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "hits per minutes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 10,
+        "y": 0
+      },
+      "id": 26,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"date\"\r\n\r\nminus1m = date.sub(d: 1m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: minus1m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1s, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "hits per seconds",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "hit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1.duration:count<10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "<10ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2.duration:count_20"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "10-20ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "3.duration:count_50"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "20-50ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "4.duration:count_100"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "50-100ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5.duration:count_200"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "100-200ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "6.duration:count_500"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "200-500ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "7.duration:count_1000"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "500-1000ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "9.duration:count>2000"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": ">2000ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "8.duration:count_2000"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "1000-2000ms"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "maxDataPoints": 100,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 1,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" )\r\n|> filter(fn: (r) =>  r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\n\r\ndata0 = data \r\n|> filter(fn: (r) => (r._value < 10)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"1.duration:count<10\" }))\r\n\r\ndata1 = data \r\n|> filter(fn: (r) => (r._value > 10 and r._value <= 20)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"2.duration:count_20\"})) \r\n\r\ndata2 = data \r\n|> filter(fn: (r) => (r._value > 20 and r._value <= 50)) \r\n|> count()  \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"3.duration:count_50\"}) ) \r\n\r\ndata3 = data \r\n|> filter(fn: (r) => (r._value > 50 and r._value <= 100)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"4.duration:count_100\"}) ) \r\n\r\ndata4 = data \r\n|> filter(fn: (r) => (r._value > 100 and r._value <= 200)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"5.duration:count_200\"}) ) \r\n\r\ndata5 = data \r\n|> filter(fn: (r) => (r._value > 200 and r._value <= 500)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"6.duration:count_500\"})) \r\n\r\ndata6 = data \r\n|> filter(fn: (r) => (r._value > 500 and r._value <= 1000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"7.duration:count_1000\"}) ) \r\n\r\ndata7 = data \r\n|> filter(fn: (r) => (r._value > 1000 and r._value <= 2000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"8.duration:count_2000\"}) ) \r\n\r\ndata8 = data \r\n|> filter(fn: (r) => (r._value > 2000) ) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start,  _value:r._value, _field:\"9.duration:count>2000\"})) \r\n\r\nunion(tables :[data0, data1, data2, data3, data4, data5, data6, data7, data8]) \r\n|> yield() ",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Pages' hits clustered by response time",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd",
+            "seriesBy": "max"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 500,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 2000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "page:count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "page:errorCount"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errorRatio"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlRd",
+                  "seriesBy": "max"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 4
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 5
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration:median"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Median"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration:quantile__q_0.7"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "70 percentiles"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration:quantile__q_0.9"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "90 percentiles"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cspError"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "unit",
+                "value": "hit"
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 20
+              },
+              {
+                "id": "custom.axisSoftMin",
+                "value": 0
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "bars"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ratioCaptcha"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 5
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds",
+                  "seriesBy": "max"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 5
+                    },
+                    {
+                      "color": "red",
+                      "value": 10
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "captchaInvalid"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/captcha.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "bars"
+              },
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "group": "count Capcha invalid",
+                  "mode": "normal"
+                }
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 2
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 40
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "id": 6,
+      "maxDataPoints": 200,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "countData = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"errorCode\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountError = countData\r\n|> filter(fn: (r) => exists r.errorCode)\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> group()\r\n|> set(key: \"_field\", value: \"countError\")\r\n\r\ncountTotal = countData\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> group()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables :[countError, countTotal]) \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with errorRatio:if(exists r.countError) then float(v: r.countError)*100.0/float(v:r.count) else 0.0}) ) \r\n|> yield() \r\n\r\n\r\n",
+          "queryType": "randomWalk",
+          "refId": "errorRatio",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\nquantile__q_0_7Data = data \r\n|> quantile(q: 0.7) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_7\" ) \r\n\r\nmedianData = data \r\n|> median() \r\n|> toFloat()\r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"median\" ) \r\n\r\nquantile__q_0_9Data = data \r\n|> quantile(q: 0.9) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_9\" ) \r\n\r\nunion(tables:[quantile__q_0_7Data, medianData, quantile__q_0_9Data]) \r\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> drop(columns: [\"_start\", \"_stop\"]) \r\n|> map(fn: (r) => ({ r with duration_median: if exists r.duration_median then r.duration_median else 0.0, duration_quantile__q_0_7: if exists r.duration_quantile__q_0_7 then r.duration_quantile__q_0_7 else 0.0, duration_quantile__q_0_9: if exists r.duration_quantile__q_0_9 then r.duration_quantile__q_0_9 else 0.0}))\r\n|> rename(columns: {duration_median: \"duration:median\", duration_quantile__q_0_7: \"duration:quantile__q_0.7\", duration_quantile__q_0_9: \"duration:quantile__q_0.9\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "median, quantile",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": false,
+          "query": "import \"strings\"\r\n\r\ndataError = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"webservices\"\r\nand (r._field ==\"duration\" ) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (r.name == \"/Post//csp-report/\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountData = dataError \r\n|> count() \r\n|> group()\r\n|> rename(columns: {_value: \"cspError\"}) \r\n|> yield()",
+          "refId": "count CSP"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\nimport \"math\"\r\n\r\ndataBots = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn : (r) => r.name == \"/reservation/demarche/{demId}/creneau//_semaineSuivante\" or r.name == \"/reservation/demarche/{demId}/_validerCaptcha\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> keep(columns: [\"_time\", \"name\", \"_value\"]) \r\n|> window(every: duration(v: int(v: math.mMax(x: float(v:int(v:15m)) , y: float(v:int(v:$__interval))))), createEmpty:true ) \r\n|> count()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"name\"], valueColumn: \"_value\")\r\n|> group()\r\n|> rename(columns: {\"/reservation/demarche/{demId}/creneau//_semaineSuivante\": \"semaineSuivante\"})\r\n|> rename(columns: {\"/reservation/demarche/{demId}/_validerCaptcha\": \"validerCaptcha\"})\r\n|> map(fn: (r) => ({ _time:r._start, semaineSuivante:(float(v:r.semaineSuivante)), validerCaptcha:(float(v:r.validerCaptcha)), ratioCaptcha:(if(r.validerCaptcha>0 ) then float(v:r.semaineSuivante)/float(v:r.validerCaptcha) else float(v:r.semaineSuivante))}))\r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "botRatio",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": true,
+          "query": "import \"strings\"\r\n\r\ndataError = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\"\r\nand (r._field ==\"captchaValid\" )\r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountInvalidData = dataError \r\n|> filter(fn: (r) => r._value == 0 )\r\n|> count() \r\n|> group()\r\n|> set(key: \"_field\", value:\"captchaInvalid\" )\r\n\r\ncountValidData = dataError \r\n|> filter(fn: (r) => r._value == 100 )\r\n|> count() \r\n|> group()\r\n\r\nunion(tables :[countInvalidData, countValidData]) \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield() ",
+          "refId": "count Capcha invalid"
+        }
+      ],
+      "title": "Pages' usage",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "count": true,
+              "countError": true,
+              "semaineSuivante": true,
+              "validerCaptcha": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "ratio": "ratioBots"
+            }
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 17,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"]) \r\n|> sort(desc: true)\r\n|> rename(columns: { \"_value\": \"count\"}) \r\n|> top(n:50, columns:[\"count\"]) ",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Most visited Pages",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 1,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "inner_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "redis_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "search_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "piste_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "publipostage_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 2,
+      "maxDataPoints": 100,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 1,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "never",
+        "stacking": "normal",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\nsumData = data \r\n|> sum() \r\n\r\ncountData = data\r\n|> filter(fn: (r) => r._field ==\"inner_duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[sumData, countData])\r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Pages' mean repartition",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "inner_duration": "java",
+              "piste_duration": "pisteApi",
+              "publipostage_duration": "genPdf",
+              "redis_duration": "redis",
+              "search_duration": "search",
+              "sql_duration": "sql"
+            }
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 1,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "inner_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "redis_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "search_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "piste_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "publipostage_duration"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 31,
+      "maxDataPoints": 100,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 1,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "never",
+        "stacking": "percent",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\ndata \r\n|> sum()\r\n|> toFloat()\r\n|> group() \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Pages' hit x duration repartition",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "inner_duration": "java",
+              "piste_duration": "pisteApi",
+              "publipostage_duration": "genPdf",
+              "redis_duration": "redis",
+              "search_duration": "search",
+              "sql_duration": "sql"
+            }
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 10
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 23,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\n data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => r.errorCode == \"404\") \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"errorRequestUri\"  ]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"])\r\n|> map(fn: (r) => ({ r with _time: r._time, errorRequestUri: r.errorRequestUri, _field: r._field}))\r\n|> rename(columns: {_value: \"count\"}) \r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "404 Pages",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": true,
+            "minWidth": 100
+          },
+          "mappings": [
+            {
+              "options": {
+                "Compte inactif": {
+                  "color": "blue",
+                  "index": 0,
+                  "text": "Compte inactif"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error:count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errorCode"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#6ED0E0",
+                      "value": 300
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 400
+                    },
+                    {
+                      "color": "purple",
+                      "value": 422
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 423
+                    },
+                    {
+                      "color": "red",
+                      "value": 500
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.inspect",
+                "value": false
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errorMsg"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "Compte inactif ": {
+                        "color": "blue",
+                        "index": 0,
+                        "text": "Compte inactif"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 230
+              },
+              {
+                "id": "custom.inspect",
+                "value": false
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errorRequestUri"
+            },
+            "properties": []
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 30,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "error:count"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "\r\n data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> filter(fn: (r) => not exists r.exception )\r\n|> keep(columns: [\"_time\", \"_value\", \"errorCode\", \"errorMsg\", \"errorDetailSecure\",\"errorRequestUri\"  ]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"])\r\n|> map(fn: (r) => ({ r with errorCode: if (exists r.errorCode and exists r.errorMsg) then int(v:r.errorCode) else if (exists r.errorCode and not exists r.errorMsg) then 422 else 200, errorMsg: if (exists r.errorMsg) then r.errorMsg else if exists r.errorCode then \"Erreur utilisateur\" else \"OK\" }))\r\n//|> pivot(rowKey: [\"errorDetailSecure\"], columnKey: [\"errorMsg\"], valueColumn: \"errorCode\")\r\n|> rename(columns: {_value: \"error:count\"}) \r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Pages' Status",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "error:count": 0,
+              "errorCode": 1,
+              "errorDetailSecure": 3,
+              "errorMsg": 2
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count_duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Page"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.inspect",
+                "value": false
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hit x duration"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Nb appels"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mean_duration"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 29,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "hit x duration"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with mean_duration:r.sum_duration / r.count_duration  }) ) \r\n|> top(n: 20, columns:[\"mean_duration\"])\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Most Consumming Pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "sum_duration": false
+            },
+            "indexByName": {
+              "count_duration": 1,
+              "max_duration": 5,
+              "mean_duration": 3,
+              "min_duration": 4,
+              "name": 0,
+              "sum_duration": 2
+            },
+            "renameByName": {
+              "count_duration": "Nb appels",
+              "max_duration": "max",
+              "mean_duration": "moyenne",
+              "min_duration": "min",
+              "name": "Page",
+              "sum_duration": "hit x duration"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": false,
+            "inspect": true,
+            "width": 80
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 25,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> mean() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> toFloat()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield()\r\n",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> sum() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with _time:r._start, \r\nduration: if exists r.duration then r.duration/r.count else 0.0, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Durations per pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "count": 1,
+              "duration": 2,
+              "inner_duration": 3,
+              "name": 0,
+              "piste_duration": 5,
+              "publipostage_duration": 7,
+              "redis_duration": 6,
+              "sql_duration": 4
+            },
+            "renameByName": {
+              "count": "",
+              "duration": "",
+              "inner_duration": "java",
+              "name": "",
+              "piste_duration": "apiPiste",
+              "publipostage_duration": "genPdf",
+              "redis_duration": "redis",
+              "sql_duration": "sql"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count_duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Task"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hit x duration"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Nb appels"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 27,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"tasks\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> top(n: 20, columns:[\"sum_duration\"])\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Most consumming Tasks",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "count_duration": "Nb appels",
+              "max_duration": "max",
+              "min_duration": "min",
+              "name": "Task",
+              "sum_duration": "hit x duration"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "basic",
+            "filterable": false,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_count:max"
+            },
+            "properties": [
+              {
+                "id": "unit"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_count:mean"
+            },
+            "properties": [
+              {
+                "id": "unit"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Nb appels"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.inspect",
+                "value": false
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.inspect",
+                "value": true
+              },
+              {
+                "id": "custom.width"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_duration:sum"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 20,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Nb appels"
+          }
+        ]
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"duration\") or (r._field ==\"sql_duration\" ) or (r._field ==\"sql_count\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> filter(fn: (r) => r.sql_count_max>0) \r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\" \r\nand (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (\"${pageModule}\"==\"all\" or strings.hasPrefix(v: r.name, prefix: \"/${pageModule}\"))\r\n and (\"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n)\r\n|> keep(columns:[\"_time\", \"_field\", \"_value\"])\r\n|> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n//|> filter(fn: (r) => r.sql_count>6)\r\n\r\nmaxData = data \r\n|> max(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\nmeanCountData = data \r\n|> mean(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, meanCountData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\" \r\nand ((r._field ==\"duration\") or (r._field ==\"sql_duration\" ) or (r._field ==\"sql_count\" )) \r\nand (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (\"${pageModule}\"==\"all\" or strings.hasPrefix(v: r.name, prefix: \"/${pageModule}\"))\r\n and (\"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "C",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Sql usage per pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "sql_count_sum": true
+            },
+            "indexByName": {
+              "duration_count": 1,
+              "name": 0,
+              "sql_count:max": 2,
+              "sql_count:mean": 3,
+              "sql_count_sum": 4,
+              "sql_duration:sum": 5
+            },
+            "renameByName": {
+              "duration_count": "Nb appels",
+              "name": "",
+              "sql_count:max": "Nb appels max",
+              "sql_count:mean": "Nb appels moyen",
+              "sql_count_sum": "",
+              "sql_duration:sum": "hit x duration (sql)"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 16,
+      "maxDataPoints": 100,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "max": 2000,
+          "mode": "scheme",
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 15
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": false
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"daemon\" \r\n and ((r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"success\" )) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:false ) \r\n\r\ndata\r\n|> max()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"name\"], valueColumn: \"duration\")\r\n|> group()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": true,
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"daemon\" \r\n and ((r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"success\" )) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:false ) \r\n\r\ndata\r\n|> max()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"name\"], valueColumn: \"duration\")\r\n|> group() \r\n",
+          "refId": "B"
+        }
+      ],
+      "title": "Daemons duration",
+      "type": "heatmap"
+    }
+  ],
+  "refresh": "30m",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [
+    "Vertigo",
+    "RdvPref"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "rdvpref-prod",
+          "value": "rdvpref-prod"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-vertigo"
+        },
+        "definition": "buckets()",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "app",
+        "options": [],
+        "query": "buckets()",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": "all",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-vertigo"
+        },
+        "definition": "import \"influxdata/influxdb/schema\" \r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"location\"  \r\n) ",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "location",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\" \r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"location\"  \r\n) ",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": "all",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-vertigo"
+        },
+        "definition": "import \"influxdata/influxdb/schema\" \r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"name\",\r\n start: v.timeRangeStart, \r\n stop: v.timeRangeStop\r\n) ",
+        "hide": 0,
+        "includeAll": true,
+        "label": "prefix",
+        "multi": false,
+        "name": "pageModule",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\" \r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"name\",\r\n start: v.timeRangeStart, \r\n stop: v.timeRangeStop\r\n) ",
+        "refresh": 1,
+        "regex": "/\\/([^/]+).*/",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "allValue": "all",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-vertigo"
+        },
+        "definition": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"name\",\r\n start: v.timeRangeStart, \r\n stop: v.timeRangeStop\r\n)\r\n|> filter(fn: (r) => (\"${pageModule}\"==\"all\" or r._value =~ /^\\/${pageModule}.*/ ) ) ",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Page",
+        "multi": false,
+        "name": "pageName",
+        "options": [],
+        "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.tagValues( \r\n bucket: \"${app}\",\r\n predicate: (r) => r._measurement == \"page\",\r\n tag: \"name\",\r\n start: v.timeRangeStart, \r\n stop: v.timeRangeStop\r\n)\r\n|> filter(fn: (r) => (\"${pageModule}\"==\"all\" or r._value =~ /^\\/${pageModule}.*/ ) ) ",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Vertigo-v3",
+  "uid": "eBtobwFVz",
+  "version": 12,
+  "weekStart": ""
+}

@@ -12,10 +12,10 @@ import java.util.stream.Collectors;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 
+import io.vertigo.analytics.server.AProcess;
 import io.vertigo.core.analytics.health.HealthCheck;
 import io.vertigo.core.analytics.health.HealthStatus;
 import io.vertigo.core.analytics.metric.Metric;
-import io.vertigo.core.analytics.process.AProcess;
 
 public class InfluxdbUtil {
 
@@ -93,11 +93,17 @@ public class InfluxdbUtil {
 				.collect(Collectors.toMap((entry) -> entry.getKey() + "_duration", (entry) -> entry.getValue()));
 
 		// we add a inner duration for convinience
-		final Long innerDuration = process.getDurationMillis() - process.getSubProcesses()
+		final long innerDuration = process.getDurationMillis() - process.getSubProcesses()
 				.stream()
 				.collect(Collectors.summingLong(AProcess::getDurationMillis));
 
 		final Map<String, String> properedTags = process.getTags().entrySet()
+				.stream()
+				.collect(Collectors.toMap(
+						entry -> properString(entry.getKey()),
+						entry -> properString(entry.getValue())));
+
+		final Map<String, String> properedMetadatas = process.getMetadatas().entrySet()
 				.stream()
 				.collect(Collectors.toMap(
 						entry -> properString(entry.getKey()),
@@ -114,7 +120,8 @@ public class InfluxdbUtil {
 				.addField("inner_duration", innerDuration)
 				.addFields(countFields)
 				.addFields(durationFields)
-				.addFields((Map) process.getMeasures());
+				.addFields((Map) process.getMeasures())
+				.addFields((Map) properedMetadatas);
 	}
 
 	private static VisitState flatProcess(final AProcess process, final Stack<String> upperCategory, final List<Point> points, final String host) {
@@ -159,7 +166,7 @@ public class InfluxdbUtil {
 			stack.pop();
 		}
 
-		private void incDurations(final String category, final Long duration) {
+		private void incDurations(final String category, final long duration) {
 			if (!stack.contains(category)) {
 				final Long existing = durationsByCategory.get(category);
 				if (existing == null) {

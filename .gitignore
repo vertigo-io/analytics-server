@@ -9,3 +9,4 @@ target/
 .factorypath
 .vscode/
 *.log
+**/tempo/data/**

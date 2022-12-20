@@ -92,6 +92,7 @@ public class AnalyticsServerStarter {
 							//nothing
 						}
 					}
+					break;
 				default:
 					break;
 			}

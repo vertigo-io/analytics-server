@@ -15,8 +15,8 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
 import com.influxdb.client.write.Point;
 
+import io.vertigo.analytics.server.AProcess;
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
-import io.vertigo.core.analytics.process.AProcess;
 
 @Plugin(name = "InfluxdbProcess", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
 public class Log4j2InfluxdbProcessAppender extends AbstractLog4j2InfluxdbAppender<AProcess> {
