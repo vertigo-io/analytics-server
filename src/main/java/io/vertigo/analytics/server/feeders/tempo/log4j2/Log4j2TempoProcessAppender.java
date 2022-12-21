@@ -117,6 +117,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 	private static void processToSpan(final Span span, final AProcess process, final VisitState visitState, final String host) {
 		final AttributesBuilder attributesBuilder = Attributes.builder();
 		process.getMeasures().entrySet().stream().forEach(entry -> attributesBuilder.put(entry.getKey(), entry.getValue()));
+		process.getMetadatas().entrySet().stream().forEach(entry -> attributesBuilder.put(properString(entry.getKey()), properString(entry.getValue())));
 		process.getTags().entrySet().stream().forEach(entry -> attributesBuilder.put(properString(entry.getKey()), properString(entry.getValue())));
 		visitState.getCountsByCategory().entrySet().stream()
 				.forEach(entry -> attributesBuilder.put(entry.getKey() + "_count", entry.getValue()));

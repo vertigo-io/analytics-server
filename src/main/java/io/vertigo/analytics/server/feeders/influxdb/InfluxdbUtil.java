@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import com.influxdb.client.domain.WritePrecision;
@@ -21,6 +22,7 @@ public class InfluxdbUtil {
 
 	private static final String TAG_NAME = "name";
 	private static final String TAG_LOCATION = "location";
+	private static final AtomicInteger nanoSeq = new AtomicInteger();
 
 	private InfluxdbUtil() {
 		// Util
@@ -32,7 +34,7 @@ public class InfluxdbUtil {
 		final String messageToStore = message != null ? message : "";
 
 		return Collections.singletonList(Point.measurement("healthcheck")
-				.time(healthCheck.getCheckInstant(), WritePrecision.MS)
+				.time(epochMilliToUniqueInstant(healthCheck.getCheckInstant()), WritePrecision.NS)
 				.addField("location", host)
 				.addField("name", healthCheck.getName())
 				.addField("checker", healthCheck.getChecker())
@@ -54,7 +56,7 @@ public class InfluxdbUtil {
 		final String moduleToStore = module != null ? module : "";
 
 		return Collections.singletonList(Point.measurement("metric")
-				.time(metric.getMeasureInstant(), WritePrecision.MS)
+				.time(epochMilliToUniqueInstant(metric.getMeasureInstant()), WritePrecision.NS)
 				.addField("location", host)
 				.addField("name", metric.getName())
 				.addField("module", moduleToStore)
@@ -110,7 +112,7 @@ public class InfluxdbUtil {
 						entry -> properString(entry.getValue())));
 
 		return Point.measurement(process.getCategory())
-				.time(Instant.ofEpochMilli(process.getStart()), WritePrecision.MS)
+				.time(epochMilliToUniqueInstant(Instant.ofEpochMilli(process.getStart())), WritePrecision.NS)
 				.addTag(TAG_NAME, properString(process.getName()))
 				.addTag(TAG_LOCATION, host)
 				.addTags(properedTags)
@@ -201,6 +203,11 @@ public class InfluxdbUtil {
 			return string;
 		}
 		return string.replaceAll("\n", " ");
+	}
+
+	private static Instant epochMilliToUniqueInstant(final Instant measureTime) {
+		final var nano = nanoSeq.updateAndGet(i -> ++i % 99999) + 1;
+		return measureTime.plusNanos(nano);
 	}
 
 }
