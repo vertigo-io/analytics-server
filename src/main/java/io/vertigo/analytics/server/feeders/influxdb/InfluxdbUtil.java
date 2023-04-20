@@ -30,43 +30,43 @@ public class InfluxdbUtil {
 
 	public static List<Point> heathCheckToPoints(final HealthCheck healthCheck, final String host) {
 
-		final String message = healthCheck.getMeasure().getMessage();
+		final String message = healthCheck.healthMeasure().message();
 		final String messageToStore = message != null ? message : "";
 
 		return Collections.singletonList(Point.measurement("healthcheck")
-				.time(epochMilliToUniqueInstant(healthCheck.getCheckInstant()), WritePrecision.NS)
+				.time(epochMilliToUniqueInstant(healthCheck.checkInstant()), WritePrecision.NS)
 				.addField("location", host)
-				.addField("name", healthCheck.getName())
-				.addField("checker", healthCheck.getChecker())
-				.addField("module", healthCheck.getModule())
-				.addField("feature", healthCheck.getFeature())
-				.addField("status", getNumericValue(healthCheck.getMeasure().getStatus()))
+				.addField("name", healthCheck.name())
+				.addField("checker", healthCheck.checker())
+				.addField("module", healthCheck.module())
+				.addField("feature", healthCheck.feature())
+				.addField("status", getNumericValue(healthCheck.healthMeasure().status()))
 				.addField("message", messageToStore)
 				.addTag("location", host)
-				.addTag("name", healthCheck.getName())
-				.addTag("checker", healthCheck.getChecker())
-				.addTag("module", healthCheck.getModule())
-				.addTag("feature", healthCheck.getFeature())
-				.addTag("status", String.valueOf(getNumericValue(healthCheck.getMeasure().getStatus()))));
+				.addTag("name", healthCheck.name())
+				.addTag("checker", healthCheck.checker())
+				.addTag("module", healthCheck.module())
+				.addTag("feature", healthCheck.feature())
+				.addTag("status", String.valueOf(getNumericValue(healthCheck.healthMeasure().status()))));
 	}
 
 	public static List<Point> metricToPoints(final Metric metric, final String host) {
 
-		final String module = metric.getModule();// for now module is null
+		final String module = metric.module();// for now module is null
 		final String moduleToStore = module != null ? module : "";
 
 		return Collections.singletonList(Point.measurement("metric")
-				.time(epochMilliToUniqueInstant(metric.getMeasureInstant()), WritePrecision.NS)
+				.time(epochMilliToUniqueInstant(metric.measureInstant()), WritePrecision.NS)
 				.addField("location", host)
-				.addField("name", metric.getName())
+				.addField("name", metric.name())
 				.addField("module", moduleToStore)
-				.addField("feature", metric.getFeature())
-				.addField("value", metric.getValue())
+				.addField("feature", metric.feature())
+				.addField("value", metric.value())
 				.addTag("location", host)
-				.addTag("name", metric.getName())
+				.addTag("name", metric.name())
 				.addTag("module", moduleToStore)
-				.addTag("feature", metric.getFeature())
-				.addTag("value", String.valueOf(metric.getValue())));
+				.addTag("feature", metric.feature())
+				.addTag("value", String.valueOf(metric.value())));
 	}
 
 	public static List<Point> processToPoints(final AProcess process, final String host) {

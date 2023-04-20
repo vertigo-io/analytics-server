@@ -3,8 +3,6 @@ package io.vertigo.analytics.server.feeders.influxdb.http;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,6 +11,7 @@ import com.google.gson.Gson;
 import io.javalin.Javalin;
 import io.vertigo.analytics.server.AProcess;
 import io.vertigo.analytics.server.LogMessage;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class HttpProcessInflux {
 
