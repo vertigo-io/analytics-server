@@ -10,17 +10,17 @@ import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Configuration;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.write.Point;
 
 import io.vertigo.analytics.server.LogMessage;
+import io.vertigo.core.lang.json.CoreJsonAdapters;
 
 abstract class AbstractLog4j2InfluxdbAppender<O> extends AbstractAppender {
 
-	private static final Gson GSON = new GsonBuilder().create();
+	private static final Gson GSON = CoreJsonAdapters.V_CORE_GSON;
 
 	private final InfluxDBClient influxDBClient;
 	private final String org;
