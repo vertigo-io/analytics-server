@@ -74,7 +74,7 @@
 		</dependency>
 	</dependencies>
 
-	<!--build>
+	<build>
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
@@ -100,5 +100,5 @@
 				</executions>
 			</plugin>
 		</plugins>
-	</build-->
+	</build>
 </project>
