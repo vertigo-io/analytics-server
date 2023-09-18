@@ -33,8 +33,8 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.analytics.server.LogMessage;
+import io.vertigo.analytics.server.TraceSpan;
 
 @Plugin(name = "TempoProcess", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
 public class Log4j2TempoProcessAppender extends AbstractAppender {
@@ -94,7 +94,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	private void sendProcess(final LogMessage<TraceSpan> logMessage) {
 		final var process = logMessage.getEvent();
-		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.9.1");
+		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.10.0");
 		final var rootSpan = openTelemetryTracer
 				.spanBuilder(process.getName())
 				.setNoParent()
