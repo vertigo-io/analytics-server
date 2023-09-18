@@ -52,7 +52,7 @@ import io.vertigo.core.lang.Assertion;
  * @author pchretien, npiedeloup
  * @version $Id: KProcess.java,v 1.8 2012/10/16 17:18:26 pchretien Exp $
  */
-public final class AProcess {
+public final class TraceSpan {
 	/**
 	 * REGEX used to define rules on category, mesaures and tags.
 	 */
@@ -71,7 +71,8 @@ public final class AProcess {
 	private final Map<String, Double> measures;
 	private final Map<String, String> tags;
 	private final Map<String, String> metadatas;
-	private final List<AProcess> subProcesses;
+
+	private final List<TraceSpan> childSpans;
 
 	/**
 	 * Constructor.
@@ -81,9 +82,9 @@ public final class AProcess {
 	 * @param end the end instant
 	 * @param measures the measures
 	 * @param tags the tags
-	 * @param subProcesses the list of sub processes (0..*)
+	 * @param childSpans the list of sub processes (0..*)
 	 */
-	AProcess(
+	public TraceSpan(
 			final String category,
 			final String name,
 			final Instant start,
@@ -91,7 +92,7 @@ public final class AProcess {
 			final Map<String, Double> measures,
 			final Map<String, String> metadatas,
 			final Map<String, String> tags,
-			final List<AProcess> subProcesses) {
+			final List<TraceSpan> childSpans) {
 		Assertion.check()
 				.isNotNull(category, "the category of the process is required")
 				.isNotNull(name, "the name of the process is required")
@@ -100,7 +101,7 @@ public final class AProcess {
 				.isNotNull(measures, "the measures are required")
 				.isNotNull(metadatas, "the metaDatas are required")
 				.isNotNull(tags, "the tags are required")
-				.isNotNull(subProcesses, "the subProcesses are required");
+				.isNotNull(childSpans, "the childSpans are required");
 		//---
 		checkRegex(category, PROCESS_CATEGORY_REGEX, "process type");
 		measures.keySet()
@@ -115,7 +116,7 @@ public final class AProcess {
 		this.measures = Collections.unmodifiableMap(new HashMap<>(measures));
 		this.metadatas = Collections.unmodifiableMap(new HashMap<>(metadatas));
 		this.tags = Collections.unmodifiableMap(new HashMap<>(tags));
-		this.subProcesses = subProcesses;
+		this.childSpans = childSpans;
 	}
 
 	private static void checkRegex(final String s, final Pattern pattern, final String info) {
@@ -184,10 +185,10 @@ public final class AProcess {
 	}
 
 	/**
-	 * @return the list of sub processes
+	 * @return the list of child spans
 	 */
-	public List<AProcess> getSubProcesses() {
-		return subProcesses;
+	public List<TraceSpan> getChildSpans() {
+		return childSpans;
 	}
 
 	/** {@inheritDoc} */

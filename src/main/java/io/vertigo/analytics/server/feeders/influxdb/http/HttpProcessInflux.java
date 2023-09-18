@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import io.javalin.Javalin;
-import io.vertigo.analytics.server.AProcess;
+import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.analytics.server.LogMessage;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -35,7 +35,7 @@ public class HttpProcessInflux {
 
 			@Override
 			public Type[] getActualTypeArguments() {
-				return new Type[] { AProcess.class };
+				return new Type[] { TraceSpan.class };
 			}
 		};
 

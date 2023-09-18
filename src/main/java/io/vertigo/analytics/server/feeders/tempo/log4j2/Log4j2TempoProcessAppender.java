@@ -33,7 +33,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import io.vertigo.analytics.server.AProcess;
+import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.analytics.server.LogMessage;
 
 @Plugin(name = "TempoProcess", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
@@ -82,7 +82,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 	public void append(final LogEvent event) {
 
 		try {
-			final LogMessage<AProcess> logMessage = GSON.fromJson(event.getMessage().getFormattedMessage(), getLogMessageType());
+			final LogMessage<TraceSpan> logMessage = GSON.fromJson(event.getMessage().getFormattedMessage(), getLogMessageType());
 			sendProcess(logMessage);
 		} catch (final JsonSyntaxException e) {
 			// it wasn't a message for us so we do nothing
@@ -92,7 +92,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	}
 
-	private void sendProcess(final LogMessage<AProcess> logMessage) {
+	private void sendProcess(final LogMessage<TraceSpan> logMessage) {
 		final var process = logMessage.getEvent();
 		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.9.1");
 		final var rootSpan = openTelemetryTracer
@@ -110,11 +110,11 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	}
 
-	public static VisitState processToPoints(final AProcess process, final String host, final Tracer tracer) {
+	public static VisitState processToPoints(final TraceSpan process, final String host, final Tracer tracer) {
 		return flatProcess(process, new Stack<>(), host, tracer);
 	}
 
-	private static void processToSpan(final Span span, final AProcess process, final VisitState visitState, final String host) {
+	private static void processToSpan(final Span span, final TraceSpan process, final VisitState visitState, final String host) {
 		final AttributesBuilder attributesBuilder = Attributes.builder();
 		process.getMeasures().entrySet().stream().forEach(entry -> attributesBuilder.put(entry.getKey(), entry.getValue()));
 		process.getMetadatas().entrySet().stream().forEach(entry -> attributesBuilder.put(properString(entry.getKey()), properString(entry.getValue())));
@@ -131,9 +131,9 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	}
 
-	private static VisitState flatProcess(final AProcess process, final Stack<String> upperCategory, final String host, final Tracer tracer) {
+	private static VisitState flatProcess(final TraceSpan process, final Stack<String> upperCategory, final String host, final Tracer tracer) {
 		final VisitState visitState = new Log4j2TempoProcessAppender.VisitState(upperCategory);
-		process.getSubProcesses().stream()
+		process.getChildSpans().stream()
 				.forEach(subProcess -> {
 					visitState.push(subProcess);
 					final var subSpan = tracer.spanBuilder(subProcess.getName())
@@ -162,7 +162,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 			stack = upperCategory;
 		}
 
-		void push(final AProcess process) {
+		void push(final TraceSpan process) {
 			incDurations(process.getCategory(), process.getDurationMillis());
 			incCounts(process.getCategory(), 1);
 			stack.push(process.getCategory());
@@ -231,7 +231,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 			@Override
 			public Type[] getActualTypeArguments() {
-				return new Type[] { AProcess.class };
+				return new Type[] { TraceSpan.class };
 			}
 		};
 	}

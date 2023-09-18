@@ -15,11 +15,11 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
 import com.influxdb.client.write.Point;
 
-import io.vertigo.analytics.server.AProcess;
+import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
 
 @Plugin(name = "InfluxdbProcess", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
-public class Log4j2InfluxdbProcessAppender extends AbstractLog4j2InfluxdbAppender<AProcess> {
+public class Log4j2InfluxdbProcessAppender extends AbstractLog4j2InfluxdbAppender<TraceSpan> {
 
 	private Log4j2InfluxdbProcessAppender(
 			final String name,
@@ -32,13 +32,13 @@ public class Log4j2InfluxdbProcessAppender extends AbstractLog4j2InfluxdbAppende
 	}
 
 	@Override
-	protected List<Point> eventToPoints(final AProcess process, final String host) {
+	protected List<Point> eventToPoints(final TraceSpan process, final String host) {
 		return InfluxdbUtil.processToPoints(process, host);
 	}
 
 	@Override
 	protected Type getEventType() {
-		return AProcess.class;
+		return TraceSpan.class;
 	}
 
 	@PluginFactory

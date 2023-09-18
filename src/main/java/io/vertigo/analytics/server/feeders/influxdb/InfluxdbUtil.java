@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 
-import io.vertigo.analytics.server.AProcess;
+import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.core.analytics.health.HealthCheck;
 import io.vertigo.core.analytics.health.HealthStatus;
 import io.vertigo.core.analytics.metric.Metric;
@@ -69,7 +69,7 @@ public class InfluxdbUtil {
 				.addTag("value", String.valueOf(metric.value())));
 	}
 
-	public static List<Point> processToPoints(final AProcess process, final String host) {
+	public static List<Point> processToPoints(final TraceSpan process, final String host) {
 		final List<Point> points = new ArrayList<>();
 		flatProcess(process, new Stack<>(), points, host);
 		return points;
@@ -88,16 +88,16 @@ public class InfluxdbUtil {
 		}
 	}
 
-	private static Point processToPoint(final AProcess process, final VisitState visitState, final String host) {
+	private static Point processToPoint(final TraceSpan process, final VisitState visitState, final String host) {
 		final Map<String, Object> countFields = visitState.getCountsByCategory().entrySet().stream()
 				.collect(Collectors.toMap((entry) -> entry.getKey() + "_count", (entry) -> entry.getValue()));
 		final Map<String, Object> durationFields = visitState.getDurationsByCategory().entrySet().stream()
 				.collect(Collectors.toMap((entry) -> entry.getKey() + "_duration", (entry) -> entry.getValue()));
 
 		// we add a inner duration for convinience
-		final long innerDuration = process.getDurationMillis() - process.getSubProcesses()
+		final long innerDuration = process.getDurationMillis() - process.getChildSpans()
 				.stream()
-				.collect(Collectors.summingLong(AProcess::getDurationMillis));
+				.collect(Collectors.summingLong(TraceSpan::getDurationMillis));
 
 		final Map<String, String> properedTags = process.getTags().entrySet()
 				.stream()
@@ -117,7 +117,7 @@ public class InfluxdbUtil {
 				.addTag(TAG_LOCATION, host)
 				.addTags(properedTags)
 				.addField("duration", process.getDurationMillis())
-				.addField("subprocesses", process.getSubProcesses().size())
+				.addField("subprocesses", process.getChildSpans().size())
 				.addField("name", properString(process.getName()))
 				.addField("inner_duration", innerDuration)
 				.addFields(countFields)
@@ -126,9 +126,9 @@ public class InfluxdbUtil {
 				.addFields((Map) properedMetadatas);
 	}
 
-	private static VisitState flatProcess(final AProcess process, final Stack<String> upperCategory, final List<Point> points, final String host) {
+	private static VisitState flatProcess(final TraceSpan process, final Stack<String> upperCategory, final List<Point> points, final String host) {
 		final VisitState visitState = new InfluxdbUtil.VisitState(upperCategory);
-		process.getSubProcesses().stream()
+		process.getChildSpans().stream()
 				.forEach(subProcess -> {
 					visitState.push(subProcess);
 					//on descend => stack.push
@@ -151,7 +151,7 @@ public class InfluxdbUtil {
 			stack = upperCategory;
 		}
 
-		void push(final AProcess process) {
+		void push(final TraceSpan process) {
 			incDurations(process.getCategory(), process.getDurationMillis());
 			incCounts(process.getCategory(), 1);
 			stack.push(process.getCategory());
