@@ -93,7 +93,17 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 	}
 
 	private void sendProcess(final LogMessage<TraceSpan> logMessage) {
-		final var process = logMessage.getEvent();
+		if (logMessage.getEvent() != null) {
+			sendProcess(logMessage.getEvent(), logMessage.getAppName(), logMessage.getHost());
+		}
+		if (logMessage.getEvents() != null) {
+			for (final var process : logMessage.getEvents()) {
+				sendProcess(process, logMessage.getAppName(), logMessage.getHost());
+			}
+		}
+	}
+
+	private void sendProcess(final TraceSpan process, final String appName, final String host) {
 		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.10.0");
 		final var rootSpan = openTelemetryTracer
 				.spanBuilder(process.getName())
@@ -104,8 +114,8 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 		final var topVisitState = processToPoints(process, process.getTags().get("location"), openTelemetryTracer);
 		processToSpan(rootSpan, process, topVisitState, process.getTags().get("location"));
 		rootSpan
-				.setAttribute("vertigo.app.name", logMessage.getAppName())
-				.setAttribute("vertigo.host", logMessage.getHost())
+				.setAttribute("vertigo.app.name", appName)
+				.setAttribute("vertigo.host", host)
 				.end(process.getEnd(), TimeUnit.MILLISECONDS);
 
 	}

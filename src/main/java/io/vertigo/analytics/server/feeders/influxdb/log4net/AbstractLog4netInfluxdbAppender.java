@@ -57,7 +57,14 @@ abstract class AbstractLog4netInfluxdbAppender<O> extends AbstractAppender {
 			if (!influxDBClient.getBucketsApi().findBuckets().stream().anyMatch(bucket -> bucket.getName().equals(logMessage.getAppName()))) {
 				influxDBClient.getBucketsApi().createBucket(logMessage.getAppName(), orgId);
 			}
-			influxDBClient.getWriteApiBlocking().writePoints(logMessage.getAppName(), org, eventToPoints(logMessage.getEvent(), logMessage.getHost()));
+			if (logMessage.getEvent() != null) {
+				influxDBClient.getWriteApiBlocking().writePoints(logMessage.getAppName(), org, eventToPoints(logMessage.getEvent(), logMessage.getHost()));
+			}
+			if (logMessage.getEvents() != null) { //for batch send
+				for (final O batchEvent : logMessage.getEvents()) {
+					influxDBClient.getWriteApiBlocking().writePoints(logMessage.getAppName(), org, eventToPoints(batchEvent, logMessage.getHost()));
+				}
+			}
 			//db.write(logMessage.getAppName(), "autogen", eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 		} catch (final JsonSyntaxException e) {
 			// it wasn't a message for us so we do nothing
