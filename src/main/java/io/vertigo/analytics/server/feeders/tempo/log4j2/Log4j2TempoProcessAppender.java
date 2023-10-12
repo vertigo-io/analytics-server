@@ -35,11 +35,15 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.vertigo.analytics.server.LogMessage;
 import io.vertigo.analytics.server.TraceSpan;
+import io.vertigo.analytics.server.json.AProcessJsonDeserializer;
+import io.vertigo.core.lang.json.CoreJsonAdapters;
 
 @Plugin(name = "TempoProcess", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
 public class Log4j2TempoProcessAppender extends AbstractAppender {
 
-	private static final Gson GSON = new GsonBuilder().create();
+	private static final Gson GSON = CoreJsonAdapters.addCoreGsonConfig(new GsonBuilder(), false)
+			.registerTypeAdapter(TraceSpan.class, new AProcessJsonDeserializer())
+			.create();
 	private final OpenTelemetrySdk openTelemetry;
 
 	@PluginFactory
@@ -80,7 +84,6 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	@Override
 	public void append(final LogEvent event) {
-
 		try {
 			final LogMessage<TraceSpan> logMessage = GSON.fromJson(event.getMessage().getFormattedMessage(), getLogMessageType());
 			sendProcess(logMessage);
@@ -143,6 +146,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 
 	private static VisitState flatProcess(final TraceSpan process, final Stack<String> upperCategory, final String host, final Tracer tracer) {
 		final VisitState visitState = new Log4j2TempoProcessAppender.VisitState(upperCategory);
+
 		process.getChildSpans().stream()
 				.forEach(subProcess -> {
 					visitState.push(subProcess);
