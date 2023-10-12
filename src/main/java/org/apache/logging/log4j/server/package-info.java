@@ -23,10 +23,10 @@
  */
 package org.apache.logging.log4j.server;
 
-
 /**Vertigo analytics server usage*/
 /**From https://github.com/apache/logging-log4j-server Nov 29, 2022 */
 
-/* Changes :
-/* Add support of json syntaxe from log4j JsonTemplateLayout format
-/* Add support of compressed Stream (detect via first magic char GZIP and LZF)
+/** Changes :
+ * Add support of json syntaxe from log4j JsonTemplateLayout format
+ * Add support of compressed Stream (detect via first magic char GZIP and LZF)
+ */
