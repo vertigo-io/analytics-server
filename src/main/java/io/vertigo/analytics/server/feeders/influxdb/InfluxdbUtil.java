@@ -65,8 +65,7 @@ public class InfluxdbUtil {
 				.addTag("location", host)
 				.addTag("name", metric.name())
 				.addTag("module", moduleToStore)
-				.addTag("feature", metric.feature())
-				.addTag("value", String.valueOf(metric.value())));
+				.addTag("feature", metric.feature()));
 	}
 
 	public static List<Point> processToPoints(final TraceSpan process, final String host) {
