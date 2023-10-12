@@ -31,7 +31,7 @@ services:
       - "14250:14250"
       - "3100:3100"
   grafana:
-    image: grafana/grafana:10.1.2-ubuntu
+    image: grafana/grafana:10.1.5-ubuntu
     volumes:
       - ./grafana/datasources:/etc/grafana/provisioning/datasources
       - ./grafana/dashboards-provisioning:/etc/grafana/provisioning/dashboards
