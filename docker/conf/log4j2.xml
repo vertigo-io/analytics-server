@@ -8,6 +8,7 @@
 		<InfluxdbProcess name="InfluxdbProcess" serverUrl="${env:INFLUXDB_URL:-http://localhost:8086}" token="${env:INFLUXDB_TOKEN}" org="${env:INFLUXDB_ORG:-vertigo}" />
 		<InfluxdbMetric name="InfluxdbMetric" serverUrl="${env:INFLUXDB_URL:-http://localhost:8086}" token="${env:INFLUXDB_TOKEN}" org="${env:INFLUXDB_ORG:-vertigo}" />
 		<InfluxdbHealth name="InfluxdbHealth" serverUrl="${env:INFLUXDB_URL:-http://localhost:8086}" token="${env:INFLUXDB_TOKEN}" org="${env:INFLUXDB_ORG:-vertigo}" />
+        <TempoProcess name="TempoProcess" tempoUrl="${env:TEMPO_URL:-http://localhost:14250}" />
 	</Appenders>
 	<Loggers>
 		<Logger name="vertigo-analytics-health" level="info" additivity="false">
@@ -20,8 +21,8 @@
 		</Logger>
 		<Logger name="vertigo-analytics-process" level="info" additivity="false">
 			<AppenderRef ref="InfluxdbProcess" />
+			<AppenderRef ref="TempoProcess" />
 			<AppenderRef ref="RollingFile" />
-			<AppenderRef ref="Console" />
 		</Logger>
 		<Root level="info">
 			<AppenderRef ref="Console" />
