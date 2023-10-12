@@ -1,0 +1,57 @@
+version: '3.5'
+
+# docker-compose example file
+#
+# Passwords / API key can be, for example, generated locally with :
+#   < /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-32};echo;
+
+services:  
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=vertigo
+      - DOCKER_INFLUXDB_INIT_PASSWORD=vertigo-password
+      - DOCKER_INFLUXDB_INIT_ORG=vertigo
+      - DOCKER_INFLUXDB_INIT_BUCKET=myApp
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=is4DQpHF8XkvNJRm5KNJOtjlKIpfVc2G
+    ports: 
+      - "8086:8086"
+    restart: unless-stopped
+  tempo:
+    image: grafana/tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo-local.yaml:/etc/tempo.yaml
+      - ./tempo/data:/tmp/tempo
+    restart: unless-stopped  
+    ports:
+      - "14250:14250"
+      - "3100:3100"
+  analytics:
+    image: vertigoio/vertigo-analytics-server
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=is4DQpHF8XkvNJRm5KNJOtjlKIpfVc2G
+    depends_on:
+      - influxdb
+      - tempo
+    ports:
+      - "4562:4562"
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:10.1.2-ubuntu
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards-provisioning:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards/Dashboard-Vertigo.json:/var/lib/grafana/dashboards/Dashboard-Vertigo.json
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - influxdb
+      - tempo
+      - analytics

@@ -12,32 +12,33 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginConfiguration;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
-import org.influxdb.dto.Point;
 
-import io.vertigo.analytics.server.events.process.AProcess;
+import com.influxdb.client.write.Point;
+
+import io.vertigo.analytics.server.TraceSpan;
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
 
 @Plugin(name = "InfluxdbProcess4net", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
-public class Log4netInfluxdbProcessAppender extends AbstractLog4netInfluxdbAppender<AProcess> {
+public class Log4netInfluxdbProcessAppender extends AbstractLog4netInfluxdbAppender<TraceSpan> {
 
 	private Log4netInfluxdbProcessAppender(
 			final String name,
 			final Filter filter,
 			final Configuration config,
 			final String serverUrl,
-			final String login,
-			final String password) {
-		super(name, filter, config, serverUrl, login, password);
+			final String token,
+			final String org) {
+		super(name, filter, config, serverUrl, token, org);
 	}
 
 	@Override
-	protected List<Point> eventToPoints(final AProcess process, final String host) {
+	protected List<Point> eventToPoints(final TraceSpan process, final String host) {
 		return InfluxdbUtil.processToPoints(process, host);
 	}
 
 	@Override
 	protected Type getEventType() {
-		return AProcess.class;
+		return TraceSpan.class;
 	}
 
 	@PluginFactory
@@ -46,12 +47,12 @@ public class Log4netInfluxdbProcessAppender extends AbstractLog4netInfluxdbAppen
 			@PluginConfiguration final Configuration config,
 			@PluginElement("Filter") final Filter filter,
 			@PluginAttribute("serverUrl") final String serverUrl,
-			@PluginAttribute("login") final String login,
-			@PluginAttribute("password") final String password) {
+			@PluginAttribute("token") final String token,
+			@PluginAttribute("org") final String org) {
 		if (name == null) {
 			LOGGER.error("A name for the Appender must be specified");
 			return null;
 		}
-		return new Log4netInfluxdbProcessAppender(name, filter, config, serverUrl, login, password);
+		return new Log4netInfluxdbProcessAppender(name, filter, config, serverUrl, token, org);
 	}
 }

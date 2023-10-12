@@ -12,10 +12,11 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginConfiguration;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
-import org.influxdb.dto.Point;
 
-import io.vertigo.analytics.server.events.health.HealthCheck;
+import com.influxdb.client.write.Point;
+
 import io.vertigo.analytics.server.feeders.influxdb.InfluxdbUtil;
+import io.vertigo.core.analytics.health.HealthCheck;
 
 @Plugin(name = "InfluxdbHealth", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
 public class Log4j2InfluxdbHealthAppender extends AbstractLog4j2InfluxdbAppender<HealthCheck> {
@@ -25,9 +26,9 @@ public class Log4j2InfluxdbHealthAppender extends AbstractLog4j2InfluxdbAppender
 			final Filter filter,
 			final Configuration config,
 			final String serverUrl,
-			final String login,
-			final String password) {
-		super(name, filter, config, serverUrl, login, password);
+			final String token,
+			final String org) {
+		super(name, filter, config, serverUrl, token, org);
 	}
 
 	@Override
@@ -46,12 +47,12 @@ public class Log4j2InfluxdbHealthAppender extends AbstractLog4j2InfluxdbAppender
 			@PluginConfiguration final Configuration config,
 			@PluginElement("Filter") final Filter filter,
 			@PluginAttribute("serverUrl") final String serverUrl,
-			@PluginAttribute("login") final String login,
-			@PluginAttribute("password") final String password) {
+			@PluginAttribute("token") final String token,
+			@PluginAttribute("org") final String org) {
 		if (name == null) {
 			LOGGER.error("A name for the Appender must be specified");
 			return null;
 		}
-		return new Log4j2InfluxdbHealthAppender(name, filter, config, serverUrl, login, password);
+		return new Log4j2InfluxdbHealthAppender(name, filter, config, serverUrl, token, org);
 	}
 }

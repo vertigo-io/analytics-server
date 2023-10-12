@@ -1,0 +1,31 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Tempo-Vertigo
+  - name: InfluxDB-Vertigo
+
+datasources:
+- name: Tempo-Vertigo
+  type: tempo
+  access: proxy
+  orgId: 1
+  url: http://tempo:3100
+  basicAuth: false
+  isDefault: false
+  version: 1
+  editable: false
+  apiVersion: 1
+  uid: tempo
+
+- name: InfluxDB-Vertigo
+  type: influxdb
+  uid: influxdb-vertigo
+  access: proxy
+  orgId: 1
+  url: http://influxdb:8086
+  secureJsonData:
+    token: is4DQpHF8XkvNJRm5KNJOtjlKIpfVc2G
+  jsonData:
+    version: Flux
+    organization: vertigo
+    tlsSkipVerify: true

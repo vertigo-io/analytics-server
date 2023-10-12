@@ -91,7 +91,8 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 				}
 			}
 		} catch (final IOException ex) {
-			logger.error(workingText, ex);
+			logger.warn(ex.getMessage() + " on: " + workingText);
+			throw ex;
 		}
 	}
 

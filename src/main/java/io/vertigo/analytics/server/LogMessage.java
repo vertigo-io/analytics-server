@@ -1,10 +1,13 @@
 package io.vertigo.analytics.server;
 
+import java.util.List;
+
 public class LogMessage<O> {
 
 	private String appName;
 	private String host;
 	private O event;
+	private List<O> events;
 
 	public String getAppName() {
 		return appName;
@@ -28,6 +31,14 @@ public class LogMessage<O> {
 
 	public void setEvent(final O event) {
 		this.event = event;
+	}
+
+	public List<O> getEvents() {
+		return events;
+	}
+
+	public void setEvents(final List<O> events) {
+		this.events = events;
 	}
 
 }
