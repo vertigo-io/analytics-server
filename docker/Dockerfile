@@ -7,5 +7,6 @@ COPY ./conf/log4j2.xml /usr/app/conf/
 RUN chmod +x /usr/app/bin/*.sh
 
 EXPOSE 4562
+EXPOSE 4563
 
 ENTRYPOINT [ "/usr/app/bin/start.sh" ]
