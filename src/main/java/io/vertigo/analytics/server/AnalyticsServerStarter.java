@@ -10,7 +10,7 @@ import org.apache.logging.log4j.core.net.ssl.KeyStoreConfiguration;
 import org.apache.logging.log4j.core.net.ssl.SslConfiguration;
 import org.apache.logging.log4j.core.net.ssl.StoreConfigurationException;
 import org.apache.logging.log4j.core.net.ssl.TrustStoreConfiguration;
-import org.apache.logging.log4j.server.SecureTcpSocketServer;
+import org.apache.logging.log4j.server.AnalyticsTcpSocketServer;
 import org.apache.logging.log4j.server.TcpSocketServer;
 
 import io.kinetix.analytics.server.AnalyticsTcpServer;
@@ -36,15 +36,15 @@ import io.vertigo.vega.VegaFeatures;
 public class AnalyticsServerStarter {
 
 	/**
-	 * Args are by group of 3 ( type of server; port ; configUrl)
-	 * @param args
+	 * Args are by group of 3 ( type of server; port ; configUrl )
+	 *@param args
 	 * @throws IOException
 	 * @throws NumberFormatException
 	 * @throws StoreConfigurationException
 	 */
 	public static void main(final String[] args) throws NumberFormatException, IOException, StoreConfigurationException {
 		if (args.length == 0 && args.length % 3 != 0) {
-			throw new RuntimeException("You must provide three params");
+			throw new RuntimeException("You must provide three params : <type of server> <port> <configUrl>");
 		}
 		boolean isLog4jEnabled = false;
 		// all good
@@ -54,13 +54,19 @@ public class AnalyticsServerStarter {
 			switch (args[i * 3]) {
 				case "log4j2":
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
-					final TcpSocketServer javaSerializedTcpSocketServer = TcpSocketServer.createSerializedSocketServer(Integer.parseInt(port));
+					final TcpSocketServer javaSerializedTcpSocketServer = AnalyticsTcpSocketServer.createSerializedSocketServer(Integer.parseInt(port), false);
 					javaSerializedTcpSocketServer.startNewThread();
+					isLog4jEnabled = true;
+					break;
+				case "log4j2-gz":
+					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
+					final TcpSocketServer javaSerializedCompressedTcpSocketServer = AnalyticsTcpSocketServer.createSerializedSocketServer(Integer.parseInt(port), true);
+					javaSerializedCompressedTcpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;
 				case "log4j2json":
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
-					final TcpSocketServer jsoncpSocketServer = TcpSocketServer.createJsonSocketServer(Integer.parseInt(port));
+					final TcpSocketServer jsoncpSocketServer = AnalyticsTcpSocketServer.createJsonSocketServer(Integer.parseInt(port), true);
 					jsoncpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;
@@ -68,14 +74,15 @@ public class AnalyticsServerStarter {
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
 					final var keyStoreUrl = Optional.ofNullable(System.getenv("KEYSTORE_URL")).orElse("/opt/analytics/ssl/keystore.p12");
 					final var trustStoreUrlOpt = Optional.ofNullable(System.getenv("TRUSTSTORE_URL"));
-					final TcpSocketServer jsonSSlTcpSocketServer = SecureTcpSocketServer.createJsonServer(Integer.parseInt(port),
+					final TcpSocketServer jsonSSlTcpSocketServer = AnalyticsTcpSocketServer.createJsonSecuredServer(Integer.parseInt(port),
 							SslConfiguration.createSSLConfiguration(
 									"TLSv1.2",
 									KeyStoreConfiguration.createKeyStoreConfiguration(keyStoreUrl, null, "KEYSTORE_PASSWORD", null, "PKCS12", KeyManagerFactory
 											.getDefaultAlgorithm()),
 									trustStoreUrlOpt.isPresent() ? TrustStoreConfiguration.createKeyStoreConfiguration(trustStoreUrlOpt.get(), null, "TRUSTSTORE_PASSWORD", null, "PKCS12", KeyManagerFactory
 											.getDefaultAlgorithm()) : null,
-									false));
+									false),
+							true);
 					jsonSSlTcpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;

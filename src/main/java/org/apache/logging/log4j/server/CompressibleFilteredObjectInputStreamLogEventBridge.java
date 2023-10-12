@@ -24,26 +24,29 @@ import java.util.List;
 
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.LogEventListener;
+import org.apache.logging.log4j.core.layout.SerializedLayout;
+import org.apache.logging.log4j.util.FilteredObjectInputStream;
 
 /**
- * Reads and logs serialized {@link LogEvent} objects from an {@link ObjectInputStream}.
+ * Reads and logs serialized {@link LogEvent} objects (created with {@link SerializedLayout}) from an {@link ObjectInputStream}.
  */
-public class ObjectInputStreamLogEventBridge extends AbstractLogEventBridge<ObjectInputStream> {
+public class CompressibleFilteredObjectInputStreamLogEventBridge extends AbstractLogEventBridge<ObjectInputStream> {
 
 	private final List<String> allowedClasses;
+	private final boolean compress;
 
-	public ObjectInputStreamLogEventBridge() {
-		this(Collections.<String> emptyList());
+	public CompressibleFilteredObjectInputStreamLogEventBridge(final boolean compress) {
+		this(Collections.<String> emptyList(), compress);
 	}
 
 	/**
-	 * Constructs an ObjectInputStreamLogEventBridge with additional allowed classes to deserialize.
-	 *
+	 * Constructs an ObjectInputStreamLogEventBridge with additional allowed classes to deserialize.	 *
 	 * @param allowedClasses class names to also allow for deserialization
 	 * @since 2.8.2
 	 */
-	public ObjectInputStreamLogEventBridge(final List<String> allowedClasses) {
+	public CompressibleFilteredObjectInputStreamLogEventBridge(final List<String> allowedClasses, final boolean compress) {
 		this.allowedClasses = allowedClasses;
+		this.compress = compress;
 	}
 
 	@Override
@@ -58,6 +61,6 @@ public class ObjectInputStreamLogEventBridge extends AbstractLogEventBridge<Obje
 
 	@Override
 	public ObjectInputStream wrapStream(final InputStream inputStream) throws IOException {
-		return new FilteredObjectInputStream(inputStream, allowedClasses);
+		return new FilteredObjectInputStream(CompressInputStreamHelper.wrapStream(inputStream, compress), allowedClasses);
 	}
 }

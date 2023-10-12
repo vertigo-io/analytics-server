@@ -16,36 +16,33 @@
  */
 package org.apache.logging.log4j.server;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
 import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.parser.JsonLogEventParser;
 import org.apache.logging.log4j.core.parser.TextLogEventParser;
 import org.apache.logging.log4j.util.Chars;
 
 /**
- * Reads and logs JSON {@link LogEvent}s from an {@link InputStream}..
+ * Reads and logs Compressible JSON {@link LogEvent}s from an {@link InputStream}..
  */
-public class JsonInputStreamLogEventBridge extends InputStreamLogEventBridge {
+public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEventBridge {
 
 	private static final int[] END_PAIR = new int[] { END, END };
 	private static final char EVENT_END_MARKER = '}';
 	private static final char EVENT_START_MARKER = '{';
 	private static final char JSON_ESC = '\\';
 	private static final char JSON_STR_DELIM = Chars.DQUOTE;
+	private final boolean compress;
 
-	public JsonInputStreamLogEventBridge() {
-		this(new JsonLogEventParser(), 1024, Charset.defaultCharset());
+	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final boolean compress) {
+		this(parser, 1024, Charset.defaultCharset(), compress);
 	}
 
-	public JsonInputStreamLogEventBridge(final TextLogEventParser parser) {
-		this(parser, 1024, Charset.defaultCharset());
-	}
-
-	public JsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset) {
-		super(parser, bufferSize, charset,
-				String.valueOf(EVENT_END_MARKER));
+	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset, final boolean compress) {
+		super(parser, bufferSize, charset, String.valueOf(EVENT_END_MARKER));
+		this.compress = compress;
 	}
 
 	@Override
@@ -91,6 +88,11 @@ public class JsonInputStreamLogEventBridge extends InputStreamLogEventBridge {
 			}
 		}
 		return END_PAIR;
+	}
+
+	@Override
+	public InputStream wrapStream(final InputStream inputStream) throws IOException {
+		return CompressInputStreamHelper.wrapStream(inputStream, compress);
 	}
 
 }
