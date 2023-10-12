@@ -23,6 +23,7 @@ import java.io.OptionalDataException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -69,6 +70,12 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 					closed = true;
 				} catch (final OptionalDataException e) {
 					logger.error("OptionalDataException eof=" + e.eof + " length=" + e.length, e);
+				} catch (final SocketException e) {
+					if (e.getMessage().contains("Connection reset")) {
+						closed = true; //juste client close connection
+					} else {
+						logger.error("IOException encountered while reading from socket", e);
+					}
 				} catch (final IOException e) {
 					logger.error("IOException encountered while reading from socket", e);
 				} catch (final ParseException e) {
@@ -176,7 +183,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				handlers.put(Long.valueOf(handler.getId()), handler);
 				handler.start();
 			} catch (final IOException e) {
-				if (serverSocket.isClosed()) {
+				if (serverSocket.isClosed() || e.getMessage().contains("Connection reset")) {
 					// OK we're done.
 					logger.traceExit(entry);
 					return;
