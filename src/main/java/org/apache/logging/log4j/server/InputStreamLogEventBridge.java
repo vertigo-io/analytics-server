@@ -16,6 +16,7 @@
  */
 package org.apache.logging.log4j.server;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -61,6 +62,9 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 				final int streamReadLength = inputStream.read(buffer);
 				if (streamReadLength == END) {
 					// The input stream is EOF
+					if (workingText.isEmpty()) {
+						throw new EOFException("Socket closed");
+					}
 					break;
 				}
 				final String text = workingText = textRemains + new String(buffer, 0, streamReadLength, charset);
@@ -90,8 +94,11 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 					}
 				}
 			}
+		} catch (final EOFException ex) {
+			//close silently
+			throw ex;
 		} catch (final IOException ex) {
-			logger.warn(ex.getMessage() + " on: " + workingText);
+			logger.warn(ex.getMessage() + " last read: " + workingText);
 			throw ex;
 		}
 	}
