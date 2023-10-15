@@ -55,6 +55,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 		public SocketHandler(final Socket socket) throws IOException {
 			this.socket = socket;
 			this.inputStream = logEventInput.wrapStream(socket.getInputStream());
+			logger.debug("Create SocketHandler on {}, with {}", socket, logEventInput);
 		}
 
 		@Override
@@ -63,8 +64,11 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			boolean closed = false;
 			try {
 				try {
+					logger.info("Start listening events on {}, with {}", socket, logEventInput);
 					while (!shutdown) {
+						logger.debug("Listening events on {}", socket);
 						logEventInput.logEvents(inputStream, TcpSocketServer.this);
+						logger.info("Received events from {}", socket);
 					}
 				} catch (final EOFException e) {
 					closed = true;
@@ -86,6 +90,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				}
 			} finally {
 				handlers.remove(Long.valueOf(getId()));
+				logger.info("Stop listening events on {}, with {}", socket, logEventInput);
 			}
 			logger.traceExit(entry);
 		}
@@ -168,11 +173,11 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			}
 			try {
 				// Accept incoming connections.
-				logger.debug("Listening for a connection {}...", serverSocket);
+				logger.info("Listening for a connection {}...", serverSocket);
 				@SuppressWarnings("resource") // clientSocket is closed during SocketHandler shutdown
 				final Socket clientSocket = serverSocket.accept();
-				logger.debug("Acepted connection on {}...", serverSocket);
-				logger.debug("Socket accepted: {}", clientSocket);
+				logger.debug("Accepted connection on {}...", serverSocket);
+				logger.info("Socket accepted: {}", clientSocket);
 				clientSocket.setSoLinger(true, 0);
 
 				// accept() will block until a client connects to the server.
