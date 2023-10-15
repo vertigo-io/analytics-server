@@ -19,6 +19,7 @@ package org.apache.logging.log4j.server;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -80,41 +81,17 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 		try {
 			final LogEvent event;
 			if (compressionType != CompressionType.NONE) {
-				//header wasn't at every objects
-				try (ObjectInputStream ois = new FilteredObjectInputStream(CompressInputStreamHelper.wrapStream(inputStream, compressionType, serializedHeader), allowedClasses)) {
-					event = (LogEvent) ois.readObject();
-				}
+				try (var nextToken = CompressInputStreamHelper.nextTokenStream((DelimitedInputStream) inputStream, compressionType, serializedHeader)) {
+					try (ObjectInputStream ois = new FilteredObjectInputStream(nextToken, allowedClasses)) {
+						event = (LogEvent) ois.readObject();
+					}
+				} //must close added streams, but not the inner input
 			} else {
 				event = (LogEvent) ((ObjectInputStream) inputStream).readObject();
 			}
 			logEventListener.log(event);
 		} catch (final ClassNotFoundException e) {
 			throw new IOException(e);
-		}
-	}
-
-	private class UncloseInputStream extends InputStream {
-
-		private final InputStream in;
-
-		UncloseInputStream(final InputStream in) {
-			this.in = in;
-		}
-
-		@Override
-		public void close() throws IOException {
-			//dont close sub stream (socket)
-			//may send EoF
-		}
-
-		@Override
-		public int read(final byte[] b, final int off, final int len) throws IOException {
-			return in.read(b, off, len);
-		}
-
-		@Override
-		public int read() throws IOException {
-			return in.read();
 		}
 	}
 
@@ -125,9 +102,12 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 		if (detectCompression) {
 			//if compressed : recreate Gzip for each object
 			//consum OIS at stream opening
-			final BufferedInputStream usedInputStream = new BufferedInputStream(new UncloseInputStream(inputStream));
+			final BufferedInputStream usedInputStream = new BufferedInputStream(inputStream);
 			final byte[] readedHeader = new byte[serializedHeader.length];
-			usedInputStream.read(readedHeader); //read the header
+			final int len = usedInputStream.read(readedHeader); //read the header
+			if (len == END) {
+				throw new EOFException("cant read header, stream ended");
+			}
 			final boolean matched = IntStream.range(0, serializedHeader.length).allMatch(i -> serializedHeader[i] == readedHeader[i]);
 			if (!matched) {
 				throw new StreamCorruptedException("invalid header " + byteArrayToHex(ByteBuffer.wrap(readedHeader, 0, serializedHeader.length).array()));
@@ -139,7 +119,7 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 				return new FilteredObjectInputStream(new SequenceInputStream(new ByteArrayInputStream(serializedHeader), usedInputStream), allowedClasses);
 			}
 			//if compressed, we need to skip the header
-			return usedInputStream;
+			return CompressInputStreamHelper.wrapStream(usedInputStream, compressionType);
 		}
 		//else we could use ObjectInputStream
 		return new FilteredObjectInputStream(inputStream, allowedClasses);
@@ -151,5 +131,10 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 			sb.append(String.format("%02x ", b));
 		}
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return "CompressibleFilteredObjectInputStreamLogEventBridge [compressionType:" + compressionType + "]";
 	}
 }

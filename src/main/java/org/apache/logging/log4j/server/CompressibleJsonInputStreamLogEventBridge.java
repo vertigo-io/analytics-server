@@ -99,13 +99,36 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 	public void logEvents(final InputStream inputStream, final LogEventListener logEventListener) throws IOException, ParseException {
 		// The default is to return the same object as given.
 		if (compressionType != CompressionType.NONE) {
-			try (var usedInputStream = CompressInputStreamHelper.wrapStream(inputStream, compressionType, null)) {
+			try (var usedInputStream = CompressInputStreamHelper.nextTokenStream((DelimitedInputStream) inputStream, compressionType, null)) {
 				super.logEvents(usedInputStream, logEventListener);
-			} //must close added streams
+			} //must close added streams, but not the inner input
 		} else {
 			super.logEvents(inputStream, logEventListener); //mode stream : don't close
 		}
 	}
+
+	/*private class UncloseableInputStream extends InputStream {
+		private final InputStream in;
+
+		public UncloseableInputStream(final InputStream in) {
+			this.in = in;
+		}
+
+		@Override
+		public int read() throws IOException {
+			return in.read();
+		}
+
+		@Override
+		public int read(final byte b[]) throws IOException {
+			return in.read(b, 0, b.length);
+		}
+
+		@Override
+		public int read(final byte b[], final int off, final int len) throws IOException {
+			return in.read(b, off, len);
+		}
+	}*/
 
 	// The default is to return the same object as given.
 	@SuppressWarnings("unchecked")
@@ -118,9 +141,14 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 			final BufferedInputStream usedInputStream = new BufferedInputStream(inputStream);
 			compressionType = CompressInputStreamHelper.detectCompressionPrefix(usedInputStream);
 			//if compressed, we need to skip the header
-			return usedInputStream;
+			return CompressInputStreamHelper.wrapStream(usedInputStream, compressionType);
 		}
 		return inputStream;
+	}
+
+	@Override
+	public String toString() {
+		return "CompressibleJsonInputStreamLogEventBridge [compressionType:" + compressionType + "]";
 	}
 
 }
