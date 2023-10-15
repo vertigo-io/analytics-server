@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="TRACE"
+<Configuration status="DEBUG"
 	packages="io.vertigo.analytics.server.feeders.influxdb.log4j2,io.vertigo.analytics.server.feeders.tempo.log4j2">
 	<Appenders>
 		<Console name="Console" target="SYSTEM_OUT">
