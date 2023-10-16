@@ -18,6 +18,8 @@ public class DelimitedInputStream extends InputStream {
 	private boolean startReaded = false;
 	private int tokenLengthBytes = 0;
 
+	private final CompressInputStreamHelper.CompressionType modeName;
+
 	private final byte delim[];
 
 	private final byte start[];
@@ -25,10 +27,11 @@ public class DelimitedInputStream extends InputStream {
 
 	private final ByteArrayOutputStream token = new ByteArrayOutputStream(); //reused
 
-	public DelimitedInputStream(final InputStream underlying, final byte start[], final byte end[]) {
+	public DelimitedInputStream(final InputStream underlying, final byte start[], final byte end[], final CompressInputStreamHelper.CompressionType modeName) {
 		in = underlying;
 		this.start = start;
 		this.end = end;
+		this.modeName = modeName;
 		tokenLengthBytes = 0;
 		delim = new byte[start.length + end.length];
 		System.arraycopy(end, 0, delim, 0, end.length); //delim : end+start
@@ -39,14 +42,24 @@ public class DelimitedInputStream extends InputStream {
 		EOS = false;
 	}
 
-	public DelimitedInputStream(final InputStream underlying, final byte start[], final int tokenLengthBytes) {
+	public DelimitedInputStream(final InputStream underlying, final byte start[], final int tokenLengthBytes, final CompressInputStreamHelper.CompressionType modeName) {
 		in = underlying;
 		this.start = start;
 		end = new byte[0];
+		this.modeName = modeName;
 		this.tokenLengthBytes = tokenLengthBytes;
 		delim = start;
 
 		EOS = false;
+	}
+
+	public CompressInputStreamHelper.CompressionType getCompressionType() {
+		return modeName;
+	}
+
+	@Override
+	public String toString() {
+		return "DelimitedInputStream mode:" + modeName + " over " + in;
 	}
 
 	private void preProcess(final byte delim[]) {

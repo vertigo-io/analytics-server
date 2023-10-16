@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.parser.ParseException;
 import org.apache.logging.log4j.core.util.Closer;
 import org.apache.logging.log4j.core.util.Log4jThread;
@@ -46,16 +48,26 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 * Thread that processes the events.
 	 */
 	private class SocketHandler extends Log4jThread {
+		protected final Logger logger;
 
 		private final T inputStream;
 		private final Socket socket;
+		private final String socketMode;
 
 		private volatile boolean shutdown = false;
 
 		public SocketHandler(final Socket socket) throws IOException {
 			this.socket = socket;
 			this.inputStream = logEventInput.wrapStream(socket.getInputStream());
-			logger.debug("Create SocketHandler on {}, with {}", socket, logEventInput);
+			this.logger = LogManager.getLogger(this.getClass().getSimpleName() + socket.getInetAddress() + ':' + socket.getPort() + "->" + socket.getLocalPort());
+
+			if (inputStream instanceof DelimitedInputStream) {
+				socketMode = logEventInput.getClass().getSimpleName() + " mode:" + ((DelimitedInputStream) inputStream).getCompressionType();
+			} else {
+				socketMode = logEventInput.getClass().getSimpleName() + " mode: NONE";
+			}
+
+			logger.debug("Create SocketHandler with {}", socketMode);
 		}
 
 		@Override
@@ -64,11 +76,11 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			boolean closed = false;
 			try {
 				try {
-					logger.info("Start listening events on {}, with {}", socket, logEventInput);
+					logger.info("Start listening events with {}", socketMode);
 					while (!shutdown) {
-						logger.debug("Listening events on {}", socket);
+						logger.debug("Listening events");
 						logEventInput.logEvents(inputStream, TcpSocketServer.this);
-						logger.info("Received events from {}", socket);
+						logger.info("Received events");
 					}
 				} catch (final EOFException e) {
 					closed = true;
@@ -90,7 +102,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				}
 			} finally {
 				handlers.remove(Long.valueOf(getId()));
-				logger.info("Stop listening events on {}, with {}", socket, logEventInput);
+				logger.info("Stop listening events with {}", socketMode);
 			}
 			logger.traceExit(entry);
 		}

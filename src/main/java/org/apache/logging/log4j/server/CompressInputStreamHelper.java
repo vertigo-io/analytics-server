@@ -64,9 +64,9 @@ public final class CompressInputStreamHelper {
 		return CompressInputStreamHelper.wrapStream(inputStream, compress, null);
 	}*/
 
-	public static <T extends InputStream> T nextTokenStream(final DelimitedInputStream inputStream, final CompressionType compressionType, final byte[] appendHeader) throws IOException {
+	public static <T extends InputStream> T nextTokenStream(final DelimitedInputStream inputStream, final byte[] appendHeader) throws IOException {
 		InputStream usedInputStream = inputStream.nextToken();
-		switch (compressionType) {
+		switch (inputStream.getCompressionType()) {
 			case GZIP_W_LENGTH:
 				usedInputStream = new GZIPInputStream(usedInputStream, 2048);
 				break;
@@ -78,26 +78,26 @@ public final class CompressInputStreamHelper {
 				break;
 			case NONE:
 			default:
-				throw new StreamCorruptedException("invalid compressionType " + compressionType);
+				throw new StreamCorruptedException("invalid compressionType " + inputStream.getCompressionType());
 		}
-		if (appendHeader != null && compressionType != CompressionType.NONE) {
+		if (appendHeader != null && inputStream.getCompressionType() != CompressionType.NONE) {
 			usedInputStream = new SequenceInputStream(new ByteArrayInputStream(appendHeader), usedInputStream);
 		}
 		return (T) usedInputStream;
 	}
 
-	public static <T extends InputStream> T wrapStream(final InputStream inputStream, final CompressionType compressionType) throws IOException {
+	public static <T extends InputStream> T wrapStream(final BufferedInputStream inputStream, final CompressionType compressionType) throws IOException {
 		InputStream usedInputStream = inputStream;
 		if (compressionType != null) {
 			switch (compressionType) {
 				case GZIP_W_LENGTH:
-					usedInputStream = new DelimitedInputStream(usedInputStream, new byte[] { (byte) 0xf1, (byte) 0xb8 }, 3);
+					usedInputStream = new DelimitedInputStream(usedInputStream, new byte[] { (byte) 0xf1, (byte) 0xb8 }, 3, compressionType);
 					break;
 				case GZIP:
-					usedInputStream = new DelimitedInputStream(usedInputStream, CompressInputStreamHelper.GZIP_HEADER, new byte[] { 0x00, 0x00 });
+					usedInputStream = new DelimitedInputStream(usedInputStream, CompressInputStreamHelper.GZIP_HEADER, new byte[] { 0x00, 0x00 }, compressionType);
 					break;
 				case LZF:
-					usedInputStream = new LZFInputStream(usedInputStream);
+					usedInputStream = new DelimitedInputStream(usedInputStream, new byte[] { (byte) 0xf1, (byte) 0xb8 }, 3, compressionType);
 					break;
 				case NONE:
 				default:

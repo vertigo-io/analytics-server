@@ -40,6 +40,7 @@ import org.apache.logging.log4j.util.FilteredObjectInputStream;
 
 /**
  * Reads and logs serialized {@link LogEvent} objects (created with {@link SerializedLayout}) from an {@link ObjectInputStream}.
+ * This is use as a singleton instance.
  */
 public class CompressibleFilteredObjectInputStreamLogEventBridge extends AbstractLogEventBridge<InputStream> {
 
@@ -59,7 +60,6 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 
 	private final List<String> allowedClasses;
 	private final boolean detectCompression;
-	private CompressionType compressionType;
 
 	public CompressibleFilteredObjectInputStreamLogEventBridge(final boolean compress) {
 		this(Collections.<String> emptyList(), compress);
@@ -80,8 +80,8 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 			throws IOException {
 		try {
 			final LogEvent event;
-			if (compressionType != CompressionType.NONE) {
-				try (var nextToken = CompressInputStreamHelper.nextTokenStream((DelimitedInputStream) inputStream, compressionType, serializedHeader)) {
+			if (inputStream instanceof DelimitedInputStream) {
+				try (var nextToken = CompressInputStreamHelper.nextTokenStream((DelimitedInputStream) inputStream, serializedHeader)) {
 					try (ObjectInputStream ois = new FilteredObjectInputStream(nextToken, allowedClasses)) {
 						event = (LogEvent) ois.readObject();
 					}
@@ -98,7 +98,6 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 	@Override
 	public InputStream wrapStream(final InputStream inputStream) throws IOException {
 		//call at socket opening
-		compressionType = CompressionType.NONE;
 		if (detectCompression) {
 			//if compressed : recreate Gzip for each object
 			//consum OIS at stream opening
@@ -112,7 +111,7 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 			if (!matched) {
 				throw new StreamCorruptedException("invalid header " + byteArrayToHex(ByteBuffer.wrap(readedHeader, 0, serializedHeader.length).array()));
 			}
-			compressionType = CompressInputStreamHelper.detectCompressionPrefix(usedInputStream);
+			final CompressionType compressionType = CompressInputStreamHelper.detectCompressionPrefix(usedInputStream);
 			if (compressionType == CompressionType.NONE) {
 				//if not compressed,we need to keep the header
 				//we can't reset
@@ -135,6 +134,6 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 
 	@Override
 	public String toString() {
-		return "CompressibleFilteredObjectInputStreamLogEventBridge [compressionType:" + compressionType + "]";
+		return "CompressibleFilteredObjectInputStreamLogEventBridge";
 	}
 }
