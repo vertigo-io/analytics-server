@@ -99,7 +99,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -123,7 +123,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"date\"\r\n\r\nminus3m = date.sub(d: 3m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start:minus3m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" and r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
+          "query": "import \"date\"\r\n\r\nminus3m = date.sub(d: 3m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start:minus3m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" and r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -253,12 +253,20 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "_value"
+              "options": "Sessions count"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "hits/min"
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
               }
             ]
           }
@@ -308,9 +316,51 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> window(every: $__interval, timeColumn:\"_stop\")\r\n|> max()\r\n|> toFloat()\r\n|> group()\r\n|> map(fn: (r) => ({ r with hitPerSecond:r._value/60.0 }))\r\n",
+          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n\r\ndata \r\n|> window(every: 1m, createEmpty:true ) \r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling} }))\r\n|> window(every: $__interval, timeColumn:\"_stop\")\r\n|> max()\r\n|> toFloat()\r\n|> group()\r\n|> map(fn: (r) => ({ r with hitPerSecond:r._value/60.0 }))\r\n|> duplicate(column: \"_value\", as: \"hitPerMinutes\")\r\n|> keep(columns: [\"_start\", \"hitPerSecond\", \"hitPerMinutes\"]) \r\n",
           "queryType": "randomWalk",
-          "refId": "A",
+          "refId": "HitsPerTime",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and (\r\n  (r._field ==\"sessionAge\" and r._value==0 and r.name != \"/reservation/demarche/{demId}\" and r.name != \"/reservation/demarche/{demId}/cgu\") \r\n  or (r._field == \"sessionAgeD\" and r.sessionNew==\"true\"))\r\n  )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 30m, createEmpty:true)\r\n|> count(column:\"_value\")\r\n|> window(every: $__interval, timeColumn:\"_stop\")\r\n|> sum()\r\n|> group()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with countSession:(if exists r.sessionAge then r.sessionAge else 0) + (if exists r.sessionAgeD then r.sessionAgeD else 0)}) )\r\n|> keep(columns: [\"_start\", \"countSession\"])\r\n",
+          "queryType": "randomWalk",
+          "refId": "Sessions",
           "resultFormat": "time_series",
           "select": [
             [
@@ -330,6 +380,26 @@
         }
       ],
       "title": "hits per minutes",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "_start"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "countSession": "Sessions count",
+              "hitPerMinutes": "hits/min",
+              "hitPerSecond": "hits/s"
+            }
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -391,7 +461,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -415,7 +485,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"date\"\r\n\r\nminus1m = date.sub(d: 1m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: minus1m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1s, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
+          "query": "import \"date\"\r\n\r\nminus1m = date.sub(d: 1m, from:v.timeRangeStop)\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: minus1m , stop: v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n\r\ndata \r\n|> window(every: 1s, createEmpty:true ) \r\n|> count()\r\n|> group()\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -464,6 +534,9 @@
             "lineWidth": 0,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -486,7 +559,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "1.duration:count<10"
+              "options": "<10ms"
             },
             "properties": [
               {
@@ -495,17 +568,13 @@
                   "fixedColor": "super-light-blue",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "<10ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "2.duration:count_20"
+              "options": "10-20ms"
             },
             "properties": [
               {
@@ -514,17 +583,13 @@
                   "fixedColor": "light-blue",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "10-20ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "3.duration:count_50"
+              "options": "20-50ms"
             },
             "properties": [
               {
@@ -533,17 +598,13 @@
                   "fixedColor": "blue",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "20-50ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "4.duration:count_100"
+              "options": "50-100ms"
             },
             "properties": [
               {
@@ -552,17 +613,13 @@
                   "fixedColor": "super-light-green",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "50-100ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "5.duration:count_200"
+              "options": "100-200ms"
             },
             "properties": [
               {
@@ -571,17 +628,13 @@
                   "fixedColor": "light-green",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "100-200ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "6.duration:count_500"
+              "options": "200-500ms"
             },
             "properties": [
               {
@@ -590,17 +643,13 @@
                   "fixedColor": "green",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "200-500ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "7.duration:count_1000"
+              "options": "500-1000ms"
             },
             "properties": [
               {
@@ -609,17 +658,13 @@
                   "fixedColor": "super-light-orange",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": "500-1000ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "9.duration:count>2000"
+              "options": ">2000ms"
             },
             "properties": [
               {
@@ -628,28 +673,36 @@
                   "fixedColor": "red",
                   "mode": "fixed"
                 }
-              },
-              {
-                "id": "displayName",
-                "value": ">2000ms"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "8.duration:count_2000"
+              "options": "1000-2000ms"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "1000-2000ms"
-              },
               {
                 "id": "color",
                 "value": {
                   "fixedColor": "orange",
                   "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": false,
+                  "viz": true
                 }
               }
             ]
@@ -708,7 +761,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" )\r\n|> filter(fn: (r) =>  r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\n\r\ndata0 = data \r\n|> filter(fn: (r) => (r._value < 10)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"1.duration:count<10\" }))\r\n\r\ndata1 = data \r\n|> filter(fn: (r) => (r._value > 10 and r._value <= 20)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"2.duration:count_20\"})) \r\n\r\ndata2 = data \r\n|> filter(fn: (r) => (r._value > 20 and r._value <= 50)) \r\n|> count()  \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"3.duration:count_50\"}) ) \r\n\r\ndata3 = data \r\n|> filter(fn: (r) => (r._value > 50 and r._value <= 100)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"4.duration:count_100\"}) ) \r\n\r\ndata4 = data \r\n|> filter(fn: (r) => (r._value > 100 and r._value <= 200)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"5.duration:count_200\"}) ) \r\n\r\ndata5 = data \r\n|> filter(fn: (r) => (r._value > 200 and r._value <= 500)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"6.duration:count_500\"})) \r\n\r\ndata6 = data \r\n|> filter(fn: (r) => (r._value > 500 and r._value <= 1000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"7.duration:count_1000\"}) ) \r\n\r\ndata7 = data \r\n|> filter(fn: (r) => (r._value > 1000 and r._value <= 2000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"8.duration:count_2000\"}) ) \r\n\r\ndata8 = data \r\n|> filter(fn: (r) => (r._value > 2000) ) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start,  _value:r._value, _field:\"9.duration:count>2000\"})) \r\n\r\nunion(tables :[data0, data1, data2, data3, data4, data5, data6, data7, data8]) \r\n|> yield() ",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" )\r\n|> filter(fn: (r) =>  r._field ==\"duration\" ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ndataNil = data \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"0.duration:total\" }))\r\n\r\ndata0 = data \r\n|> filter(fn: (r) => (r._value < 10)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"1.duration:count<10\" }))\r\n\r\ndata1 = data \r\n|> filter(fn: (r) => (r._value > 10 and r._value <= 20)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"2.duration:count_20\"})) \r\n\r\ndata2 = data \r\n|> filter(fn: (r) => (r._value > 20 and r._value <= 50)) \r\n|> count()  \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"3.duration:count_50\"}) ) \r\n\r\ndata3 = data \r\n|> filter(fn: (r) => (r._value > 50 and r._value <= 100)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"4.duration:count_100\"}) ) \r\n\r\ndata4 = data \r\n|> filter(fn: (r) => (r._value > 100 and r._value <= 200)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"5.duration:count_200\"}) ) \r\n\r\ndata5 = data \r\n|> filter(fn: (r) => (r._value > 200 and r._value <= 500)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"6.duration:count_500\"})) \r\n\r\ndata6 = data \r\n|> filter(fn: (r) => (r._value > 500 and r._value <= 1000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"7.duration:count_1000\"}) ) \r\n\r\ndata7 = data \r\n|> filter(fn: (r) => (r._value > 1000 and r._value <= 2000)) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start, _value:r._value, _field:\"8.duration:count_2000\"}) ) \r\n\r\ndata8 = data \r\n|> filter(fn: (r) => (r._value > 2000) ) \r\n|> count() \r\n|> map(fn: (r) => ({ _time:r._start,  _value:r._value, _field:\"9.duration:count>2000\"})) \r\n\r\nunion(tables :[dataNil, data0, data1, data2, data3, data4, data5, data6, data7, data8])\r\n|> group()\r\n|> map(fn: (r) => ({ r with  _value:r._value*${sampling}})) \r\n|> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield() ",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -727,9 +780,61 @@
             ]
           ],
           "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": true,
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"page\" )\r\n|> filter(fn: (r) => r._field ==\"duration\" ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ndataNil = data \r\n|> count() \r\n|> map(fn: (r) => ({ r with le:10000000000000.0, _value:r._value*${sampling}})) \r\n|> toFloat()\r\n\r\ndata0 = data\r\n|> toFloat()\r\n|> histogram(bins: [-1.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 100000000000.0])\r\n|> map(fn: (r) => ({ r with  _value:r._value*${sampling}.0})) \r\n//|> group(columns: [\"_field\"])\r\n|> difference(nonNegative: true)\r\n\r\n \r\n union(tables :[dataNil, data0])\r\n|> group()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"le\"], valueColumn: \"_value\")\r\n|> yield()\r\n\r\n",
+          "refId": "B"
         }
       ],
       "title": "Pages' hits clustered by response time",
+      "transformations": [
+        {
+          "disabled": true,
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "Time"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "0.duration:total": false
+            },
+            "indexByName": {},
+            "renameByName": {
+              "0.duration:total": "Total",
+              "1.duration:count<10": "<10ms",
+              "1E+01": "<10ms",
+              "1E+02": "50-100ms",
+              "1E+03": "500-1000ms",
+              "1E+11": ">2000ms",
+              "1E+13": "Total",
+              "2.duration:count_20": "10-20ms",
+              "2E+01": "10-20ms",
+              "2E+02": "100-200ms",
+              "2E+03": "1000-2000ms",
+              "3.duration:count_50": "20-50ms",
+              "4.duration:count_100": "50-100ms",
+              "5.duration:count_200": "100-200ms",
+              "5E+01": "20-50ms",
+              "5E+02": "200-500ms",
+              "6.duration:count_500": "200-500ms",
+              "7.duration:count_1000": "500-1000ms",
+              "8.duration:count_2000": "1000-2000ms",
+              "9.duration:count>2000": ">2000ms",
+              "Time": "",
+              "_field": "",
+              "_start": "Time"
+            }
+          }
+        }
+      ],
       "type": "barchart"
     },
     {
@@ -1140,7 +1245,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "countData = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"errorCode\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountError = countData\r\n|> filter(fn: (r) => exists r.errorCode)\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> group()\r\n|> set(key: \"_field\", value: \"countError\")\r\n\r\ncountTotal = countData\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> group()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables :[countError, countTotal]) \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with errorRatio:if(exists r.countError) then float(v: r.countError)*100.0/float(v:r.count) else 0.0}) ) \r\n|> yield() \r\n\r\n\r\n",
+          "query": "countData = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"errorCode\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountError = countData\r\n|> filter(fn: (r) => exists r.errorCode)\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))  \r\n|> group()\r\n|> set(key: \"_field\", value: \"countError\")\r\n\r\ncountTotal = countData\r\n|> drop(columns: [\"errorCode\"])\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}})) \r\n|> group()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables :[countError, countTotal]) \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with errorRatio:if(exists r.countError) then float(v: r.countError)*100.0/float(v:r.count) else 0.0}) ) \r\n|> yield() \r\n\r\n\r\n",
           "queryType": "randomWalk",
           "refId": "errorRatio",
           "resultFormat": "time_series",
@@ -1182,7 +1287,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\nquantile__q_0_7Data = data \r\n|> quantile(q: 0.7) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_7\" ) \r\n\r\nmedianData = data \r\n|> median() \r\n|> toFloat()\r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"median\" ) \r\n\r\nquantile__q_0_9Data = data \r\n|> quantile(q: 0.9) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_9\" ) \r\n\r\nunion(tables:[quantile__q_0_7Data, medianData, quantile__q_0_9Data]) \r\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> drop(columns: [\"_start\", \"_stop\"]) \r\n|> map(fn: (r) => ({ r with duration_median: if exists r.duration_median then r.duration_median else 0.0, duration_quantile__q_0_7: if exists r.duration_quantile__q_0_7 then r.duration_quantile__q_0_7 else 0.0, duration_quantile__q_0_9: if exists r.duration_quantile__q_0_9 then r.duration_quantile__q_0_9 else 0.0}))\r\n|> rename(columns: {duration_median: \"duration:median\", duration_quantile__q_0_7: \"duration:quantile__q_0.7\", duration_quantile__q_0_9: \"duration:quantile__q_0.9\"}) \r\n|> yield()",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\nquantile__q_0_7Data = data \r\n|> quantile(q: 0.7) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_7\" ) \r\n\r\nmedianData = data \r\n|> median() \r\n|> toFloat()\r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"median\" ) \r\n\r\nquantile__q_0_9Data = data \r\n|> quantile(q: 0.9) \r\n|> duplicate(column: \"_stop\", as: \"_time\") \r\n|> group() \r\n|> set(key: \"alias\", value:\"quantile__q_0_9\" ) \r\n\r\nunion(tables:[quantile__q_0_7Data, medianData, quantile__q_0_9Data]) \r\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> drop(columns: [\"_start\", \"_stop\"]) \r\n|> map(fn: (r) => ({ r with duration_median: if exists r.duration_median then r.duration_median else 0.0, duration_quantile__q_0_7: if exists r.duration_quantile__q_0_7 then r.duration_quantile__q_0_7 else 0.0, duration_quantile__q_0_9: if exists r.duration_quantile__q_0_9 then r.duration_quantile__q_0_9 else 0.0}))\r\n|> rename(columns: {duration_median: \"duration:median\", duration_quantile__q_0_7: \"duration:quantile__q_0.7\", duration_quantile__q_0_9: \"duration:quantile__q_0.9\"}) \r\n|> yield()",
           "queryType": "randomWalk",
           "refId": "median, quantile",
           "resultFormat": "time_series",
@@ -1208,7 +1313,7 @@
             "uid": "influxdb-vertigo"
           },
           "hide": false,
-          "query": "import \"strings\"\r\n\r\ndataError = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"webservices\"\r\nand (r._field ==\"duration\" ) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (r.name == \"/Post//csp-report/\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountData = dataError \r\n|> count() \r\n|> group()\r\n|> rename(columns: {_value: \"cspError\"}) \r\n|> yield()",
+          "query": "import \"strings\"\r\n\r\ndataError = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"webservices\"\r\n and (r._field ==\"duration\" ) and (r.name == \"/Post//csp-report/\")\r\n and (\"${location}\"==\"all\" or r.location == \"${location}\") \r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountData = dataError \r\n|> count()\r\n|> group()\r\n|> rename(columns: {_value: \"cspError\"}) \r\n|> yield()",
           "refId": "count CSP"
         },
         {
@@ -1259,7 +1364,7 @@
             "uid": "influxdb-vertigo"
           },
           "hide": true,
-          "query": "import \"strings\"\r\n\r\ndataError = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\"\r\nand (r._field ==\"captchaValid\" )\r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:true ) \r\n\r\ncountInvalidData = dataError \r\n|> filter(fn: (r) => r._value == 0 )\r\n|> count() \r\n|> group()\r\n|> set(key: \"_field\", value:\"captchaInvalid\" )\r\n\r\ncountValidData = dataError \r\n|> filter(fn: (r) => r._value == 100 )\r\n|> count() \r\n|> group()\r\n\r\nunion(tables :[countInvalidData, countValidData]) \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield() ",
+          "query": "",
           "refId": "count Capcha invalid"
         }
       ],
@@ -1356,7 +1461,7 @@
           }
         ]
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -1379,7 +1484,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"]) \r\n|> sort(desc: true)\r\n|> rename(columns: { \"_value\": \"count\"}) \r\n|> top(n:50, columns:[\"count\"]) ",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  and r._field ==\"duration\" )\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ndata \r\n|> count() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> group(columns:[\"_time\"]) \r\n|> sort(desc: true)\r\n|> rename(columns: { \"_value\": \"count\"}) \r\n|> top(n:50, columns:[\"count\"]) ",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -1429,6 +1534,9 @@
             "lineWidth": 0,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -1591,7 +1699,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\nsumData = data \r\n|> sum() \r\n\r\ncountData = data\r\n|> filter(fn: (r) => r._field ==\"inner_duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[sumData, countData])\r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\nsumData = data \r\n|> sum()\r\n\r\ncountData = data\r\n|> filter(fn: (r) => r._field ==\"inner_duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[sumData, countData])\r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -1658,6 +1766,9 @@
             "lineWidth": 0,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -1820,7 +1931,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\ndata \r\n|> sum()\r\n|> toFloat()\r\n|> group() \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" ) or (r._field ==\"inner_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"publipostage_duration\" )) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\"])\r\n|> window(every: $__interval, createEmpty:true )\r\n\r\ndata \r\n|> sum()\r\n|> toFloat() \r\n|> group() \r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ _time:r._start, \r\nsql_duration: if exists r.sql_duration then r.sql_duration else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration else 0.0}))\r\n|> yield()\r\n\r\n\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -1908,7 +2019,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "count"
+              "options": "_value"
             },
             "properties": [
               {
@@ -1945,6 +2056,7 @@
           ],
           "show": false
         },
+        "frameIndex": 2,
         "showHeader": true,
         "sortBy": [
           {
@@ -1953,7 +2065,7 @@
           }
         ]
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -1976,7 +2088,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"strings\"\r\n\r\n data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => r.errorCode == \"404\") \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"errorRequestUri\"  ]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"])\r\n|> map(fn: (r) => ({ r with _time: r._time, errorRequestUri: r.errorRequestUri, _field: r._field}))\r\n|> rename(columns: {_value: \"count\"}) \r\n",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"errorRequestUri\" and r.errorCode == \"404\") \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> filter(fn: (r) => not exists r.exception )\r\n|> toString()\r\n|> keep(columns: [\"_time\", \"_value\", \"errorCode\"  ])\r\n|> rename(columns: {_value:\"errorRequestUri\", errorCode:\"_value\" })\r\n|> group(columns:[\"errorRequestUri\"])\r\n\r\n\r\ndata \r\n|> count()\r\n|> group()\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -1998,6 +2110,18 @@
         }
       ],
       "title": "404 Pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "_value": "count"
+            }
+          }
+        }
+      ],
       "type": "table"
     },
     {
@@ -2063,7 +2187,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 200
+                "value": 176
               },
               {
                 "id": "unit",
@@ -2099,6 +2223,14 @@
                     {
                       "color": "#EAB839",
                       "value": 400
+                    },
+                    {
+                      "color": "semi-dark-orange",
+                      "value": 403
+                    },
+                    {
+                      "color": "#eab839",
+                      "value": 404
                     },
                     {
                       "color": "purple",
@@ -2151,21 +2283,13 @@
                 ]
               },
               {
-                "id": "custom.width",
-                "value": 230
+                "id": "custom.width"
               },
               {
                 "id": "custom.inspect",
                 "value": false
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errorRequestUri"
-            },
-            "properties": []
           }
         ]
       },
@@ -2192,7 +2316,7 @@
           }
         ]
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -2215,7 +2339,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "\r\n data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> filter(fn: (r) => not exists r.exception )\r\n|> keep(columns: [\"_time\", \"_value\", \"errorCode\", \"errorMsg\", \"errorDetailSecure\",\"errorRequestUri\"  ]) \r\n\r\ndata \r\n|> count() \r\n|> group(columns:[\"_time\"])\r\n|> map(fn: (r) => ({ r with errorCode: if (exists r.errorCode and exists r.errorMsg) then int(v:r.errorCode) else if (exists r.errorCode and not exists r.errorMsg) then 422 else 200, errorMsg: if (exists r.errorMsg) then r.errorMsg else if exists r.errorCode then \"Erreur utilisateur\" else \"OK\" }))\r\n//|> pivot(rowKey: [\"errorDetailSecure\"], columnKey: [\"errorMsg\"], valueColumn: \"errorCode\")\r\n|> rename(columns: {_value: \"error:count\"}) \r\n",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" or r._field ==\"errorDetailSecure\" or r._field ==\"errorRequestUri\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> filter(fn: (r) => not exists r.exception )\r\n|> toString()\r\n|> keep(columns: [\"_time\", \"_field\", \"_value\", \"errorCode\", \"errorMsg\"  ]) \r\n|> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> rename(columns: {duration:\"_value\"})\r\n//|> map(fn: (r) => ({ r with _value:0 }))\r\n|> group(columns: [\"errorDetailSecure\", \"errorRequestUri\", \"errorCode\", \"errorMsg\"  ])\r\n\r\n\r\ndata \r\n|> count() \r\n|> group()\r\n|> map(fn: (r) => ({ r with errorCode: if (exists r.errorCode and exists r.errorMsg) then int(v:r.errorCode) else if (exists r.errorCode and not exists r.errorMsg) then 422 else 200, errorMsg: if (exists r.errorMsg) then r.errorMsg+\" : \"+r.errorDetailSecure else if exists r.errorCode then \"Erreur utilisateur\" else \"OK\" }))\r\n//|> pivot(rowKey: [\"errorDetailSecure\"], columnKey: [\"errorMsg\"], valueColumn: \"errorCode\")\r\n|> drop(columns: [\"errorDetailSecure\"]) \r\n|> rename(columns: {_value: \"error:count\"}) \r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -2249,6 +2373,376 @@
               "errorMsg": 2
             },
             "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": true,
+            "minWidth": 100
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 39,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"webservices\"  )\r\n|> filter(fn: (r) => r._field ==\"violated-directive\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> group(columns: [\"_value\" ])\r\n|> count(column:\"name\" )\r\n|> group()\r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "CSP violations",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "error:count": 0,
+              "errorCode": 1,
+              "errorDetailSecure": 3,
+              "errorMsg": 2
+            },
+            "renameByName": {
+              "_value": "violated-directive",
+              "name": "count"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": false,
+            "inspect": true,
+            "width": 80
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 25,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> mean() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> toFloat()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield()\r\n",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> sum() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with _time:r._start, \r\nduration: if exists r.duration then r.duration/r.count else 0.0, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Durations per pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "count": 1,
+              "duration": 2,
+              "inner_duration": 3,
+              "name": 0,
+              "piste_duration": 5,
+              "publipostage_duration": 7,
+              "redis_duration": 6,
+              "sql_duration": 4
+            },
+            "renameByName": {
+              "count": "",
+              "duration": "",
+              "inner_duration": "java",
+              "name": "",
+              "piste_duration": "apiPiste",
+              "publipostage_duration": "genPdf",
+              "redis_duration": "redis",
+              "sql_duration": "sql"
+            }
           }
         }
       ],
@@ -2398,7 +2892,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 32
       },
       "id": 29,
       "options": {
@@ -2418,7 +2912,7 @@
           }
         ]
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -2442,7 +2936,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with mean_duration:r.sum_duration / r.count_duration  }) ) \r\n|> top(n: 20, columns:[\"mean_duration\"])\r\n",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\" )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with mean_duration:r.sum_duration / r.count_duration  }) ) \r\n|> top(n: 20, columns:[\"mean_duration\"])\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -2485,422 +2979,6 @@
               "mean_duration": "moyenne",
               "min_duration": "min",
               "name": "Page",
-              "sum_duration": "hit x duration"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-vertigo"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "color-text",
-            "filterable": false,
-            "inspect": true,
-            "width": 80
-          },
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 50
-              },
-              {
-                "color": "yellow",
-                "value": 500
-              },
-              {
-                "color": "orange",
-                "value": 1000
-              },
-              {
-                "color": "red",
-                "value": 2000
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "name"
-            },
-            "properties": [
-              {
-                "id": "custom.displayMode",
-                "value": "auto"
-              },
-              {
-                "id": "custom.width"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "count"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "custom.displayMode",
-                "value": "color-text"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 32
-      },
-      "id": 25,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 1,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "count"
-          }
-        ]
-      },
-      "pluginVersion": "9.1.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-vertigo"
-          },
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> mean() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> toFloat()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> yield()\r\n",
-          "queryType": "randomWalk",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-vertigo"
-          },
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": true,
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn: (r) => (r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"redis_duration\" ) or (r._field ==\"search_duration\" )or (r._field ==\"publipostage_duration\" ) or (r._field ==\"piste_duration\" ) or (r._field ==\"inner_duration\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n\r\nmeanData = data \r\n|> sum() \r\n\r\ncallCount = data\r\n|> filter(fn: (r) => r._field ==\"duration\" )\r\n|> count()\r\n|> set(key: \"_field\", value: \"count\")\r\n\r\nunion(tables:[meanData, callCount]) \r\n|> group() \r\n|> toFloat()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with _time:r._start, \r\nduration: if exists r.duration then r.duration/r.count else 0.0, \r\nsql_duration: if exists r.sql_duration then r.sql_duration/r.count else 0.0, \r\nsearch_duration: if exists r.search_duration then r.search_duration/r.count else 0.0, \r\nredis_duration: if exists r.redis_duration then r.redis_duration/r.count else 0.0, \r\npiste_duration: if exists r.piste_duration then r.piste_duration/r.count else 0.0, \r\npublipostage_duration: if exists r.publipostage_duration then r.publipostage_duration/r.count else 0.0, \r\ninner_duration: if exists r.inner_duration then r.inner_duration/r.count else 0.0}))\r\n|> yield()\r\n",
-          "queryType": "randomWalk",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
-        }
-      ],
-      "title": "Durations per pages",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {},
-            "indexByName": {
-              "count": 1,
-              "duration": 2,
-              "inner_duration": 3,
-              "name": 0,
-              "piste_duration": 5,
-              "publipostage_duration": 7,
-              "redis_duration": 6,
-              "sql_duration": 4
-            },
-            "renameByName": {
-              "count": "",
-              "duration": "",
-              "inner_duration": "java",
-              "name": "",
-              "piste_duration": "apiPiste",
-              "publipostage_duration": "genPdf",
-              "redis_duration": "redis",
-              "sql_duration": "sql"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-vertigo"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "color-text",
-            "filterable": false,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "count_duration"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Task"
-            },
-            "properties": [
-              {
-                "id": "custom.displayMode",
-                "value": "auto"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "hit x duration"
-            },
-            "properties": [
-              {
-                "id": "custom.displayMode",
-                "value": "basic"
-              },
-              {
-                "id": "custom.width",
-                "value": 250
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "min"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Nb appels"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "max"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 32
-      },
-      "id": 27,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 1,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "9.1.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-vertigo"
-          },
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"tasks\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> top(n: 20, columns:[\"sum_duration\"])\r\n",
-          "queryType": "randomWalk",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": []
-        }
-      ],
-      "title": "Most consumming Tasks",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {},
-            "indexByName": {},
-            "renameByName": {
-              "count_duration": "Nb appels",
-              "max_duration": "max",
-              "min_duration": "min",
-              "name": "Task",
               "sum_duration": "hit x duration"
             }
           }
@@ -3072,11 +3150,11 @@
         "sortBy": [
           {
             "desc": true,
-            "displayName": "Nb appels"
+            "displayName": "hit x duration (sql)"
           }
         ]
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -3100,7 +3178,7 @@
           "hide": false,
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"duration\") or (r._field ==\"sql_duration\" ) or (r._field ==\"sql_count\" ) ) \r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.name =~ /\\/${pageModule}.*/)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> filter(fn: (r) => r.sql_count_max>0) \r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"duration\") or (r._field ==\"sql_duration\" ) or (r._field ==\"sql_count\" ) ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> sum() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> filter(fn: (r) => r.sql_count_max>0) \r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -3241,6 +3319,541 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count_duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Task"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hit x duration"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Nb appels"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 27,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "hit x duration"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"tasks\"  )\r\n|> filter(fn : (r) => r._field ==\"duration\" ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) =>  \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_value\", \"name\"]) \r\n\r\ncount_duration = data\r\n  |> count()\r\n  |> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n  |> set(key: \"_field\", value: \"count_duration\") \r\n  |> group()\r\n\r\nsum_duration = data\r\n  |> sum()\r\n  |> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n  |> set(key: \"_field\", value: \"sum_duration\") \r\n  |> group()\r\n\r\nmin_duration = data\r\n  |> min()\r\n  |> set(key: \"_field\", value: \"min_duration\") \r\n  |> group()\r\n\r\nmax_duration = data\r\n  |> max()\r\n  |> set(key: \"_field\", value: \"max_duration\") \r\n  |> group()\r\n\r\nunion(tables: [count_duration, sum_duration, min_duration,  max_duration]) \r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> top(n: 20, columns:[\"sum_duration\"])\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Most consumming Tasks",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "count_duration": 1,
+              "max_duration": 4,
+              "min_duration": 3,
+              "name": 0,
+              "sum_duration": 2
+            },
+            "renameByName": {
+              "count_duration": "Nb appels",
+              "max_duration": "max",
+              "min_duration": "min",
+              "name": "Task",
+              "sum_duration": "hit x duration"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "basic",
+            "filterable": false,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "redis_count:max"
+            },
+            "properties": [
+              {
+                "id": "unit"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "redis_count:mean"
+            },
+            "properties": [
+              {
+                "id": "unit"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Nb appels"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.inspect",
+                "value": false
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.inspect",
+                "value": true
+              },
+              {
+                "id": "custom.width"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "redis_duration:sum"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "id": 36,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "hit x duration (redis)"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) =>  r._measurement == \"page\"  )\r\n|> filter(fn : (r) => (r._field ==\"duration\") or (r._field ==\"redis_duration\" ) or (r._field ==\"redis_count\" ) ) \r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"redis_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"redis_count\") \r\n|> sum() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}})) \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}})) \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"redis_duration\") \r\n|> sum() \r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}})) \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> filter(fn: (r) => r.redis_count_max>0) \r\n|> map(fn: (r) => ({ r with redis_count_mean: if exists r.redis_count_sum then r.redis_count_sum / r.duration_count else 0.0, redis_count_max: if exists r.redis_count_max then r.redis_count_max else 0.0, redis_duration_sum: if exists r.redis_duration_sum then r.redis_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {redis_count_mean: \"redis_count:mean\", redis_count_max: \"redis_count:max\", redis_duration_sum: \"redis_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\" \r\nand (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (\"${pageModule}\"==\"all\" or strings.hasPrefix(v: r.name, prefix: \"/${pageModule}\"))\r\n and (\"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n)\r\n|> keep(columns:[\"_time\", \"_field\", \"_value\"])\r\n|> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n//|> filter(fn: (r) => r.sql_count>6)\r\n\r\nmaxData = data \r\n|> max(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\nmeanCountData = data \r\n|> mean(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum(column:\"sql_count\") \r\n|> toFloat(column:\"sql_count\")\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, meanCountData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": true,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "import \"strings\"\r\n\r\ndata = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"page\" \r\nand ((r._field ==\"duration\") or (r._field ==\"sql_duration\" ) or (r._field ==\"sql_count\" )) \r\nand (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n and (\"${pageModule}\"==\"all\" or strings.hasPrefix(v: r.name, prefix: \"/${pageModule}\"))\r\n and (\"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n)\r\n|> keep(columns: [\"_time\",\"_field\", \"_value\", \"name\"]) \r\n\r\nmaxData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> max() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"max\" ) \r\n\r\ncountSumData = data \r\n|> filter(fn: (r) => r._field==\"sql_count\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\ncountData = data \r\n|> filter(fn: (r) => r._field==\"duration\") \r\n|> count() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"count\" ) \r\n\r\n\r\nsumData = data \r\n|> filter(fn: (r) => r._field==\"sql_duration\") \r\n|> sum() \r\n|> toFloat()\r\n|> set(key: \"alias\", value:\"sum\" ) \r\n\r\nunion(tables:[maxData, countSumData, countData, sumData]) \r\n|> map(fn: (r) => ({ r with name: if exists r.name then r.name else \"\"}))\r\n|> pivot(rowKey:[\"name\"], columnKey: [\"_field\", \"alias\"], valueColumn: \"_value\") \r\n|> map(fn: (r) => ({ r with sql_count_mean: if exists r.sql_count_sum then r.sql_count_sum / r.duration_count else 0.0, sql_count_max: if exists r.sql_count_max then r.sql_count_max else 0.0, sql_duration_sum: if exists r.sql_duration_sum then r.sql_duration_sum else 0.0}))\r\n|> group() \r\n|> rename(columns: {sql_count_mean: \"sql_count:mean\", sql_count_max: \"sql_count:max\", sql_duration_sum: \"sql_duration:sum\"}) \r\n|> yield()",
+          "queryType": "randomWalk",
+          "refId": "C",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Redis usage per pages",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "redis_count_sum": true,
+              "sql_count_sum": true
+            },
+            "indexByName": {
+              "duration_count": 1,
+              "name": 0,
+              "sql_count:max": 2,
+              "sql_count:mean": 3,
+              "sql_count_sum": 4,
+              "sql_duration:sum": 5
+            },
+            "renameByName": {
+              "duration_count": "Nb appels",
+              "name": "",
+              "redis_count:max": "Nb appels max",
+              "redis_count:mean": "Nb appels moyen",
+              "redis_duration:sum": "hit x duration (redis)",
+              "sql_count:max": "Nb appels max",
+              "sql_count:mean": "Nb appels moyen",
+              "sql_count_sum": "",
+              "sql_duration:sum": "hit x duration (sql)"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
           "custom": {
             "hideFrom": {
               "legend": false,
@@ -3258,7 +3871,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 48
       },
       "id": 16,
       "maxDataPoints": 100,
@@ -3270,6 +3883,7 @@
           "fill": "dark-orange",
           "max": 2000,
           "mode": "scheme",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "RdYlGn",
           "steps": 15
@@ -3295,7 +3909,7 @@
           "reverse": false
         }
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -3318,7 +3932,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => \r\nr._measurement == \"daemon\" \r\n and ((r._field ==\"duration\" ) or (r._field ==\"sql_duration\" ) or (r._field ==\"success\" )) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:false ) \r\n\r\ndata\r\n|> max()\r\n|> pivot(rowKey: [\"name\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"name\"], valueColumn: \"duration\")\r\n|> group()\r\n",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => r._measurement == \"daemon\" and ((r._field ==\"duration\" ) ) \r\n and (\"${location}\"==\"all\" or r.location == \"${location}\")\r\n)\r\n|> keep(columns: [\"_time\", \"_field\", \"name\", \"_value\"]) \r\n|> window(every: $__interval, createEmpty:false ) \r\n\r\ndata\r\n|> max()\r\n|> pivot(rowKey: [\"_start\"], columnKey: [\"name\"], valueColumn: \"_value\")\r\n|> group()\r\n",
           "queryType": "randomWalk",
           "refId": "A",
           "resultFormat": "time_series",
@@ -3350,9 +3964,1334 @@
       ],
       "title": "Daemons duration",
       "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "dark-green",
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*count.*/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<1s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<2s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "super-light-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<5s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<10s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<30s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<1m"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<2m"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<5m"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<10m"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<30m"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "<1h"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": ">1h"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "id": 33,
+      "interval": "15m",
+      "maxDataPoints": 50,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "9.1.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": true,
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => (\r\n  (r._field ==\"sessionAgeD\" or (r._field ==\"sessionHitDelayD\" and r.requestMethod==\"POST\") or (r._field ==\"ctxAgeD\" and r.requestMethod==\"POST\") )\r\n))\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_field\", \"_value\"])\r\n|> window(every: 1y, createEmpty:false )\r\n\r\ndata0 = data\r\n|> filter(fn: (r) => ( r._value < 1 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> map(fn: (r) => ({ r with alias:\"<1s\"})) \r\n\r\ndata1 = data\r\n|> filter(fn: (r) => ( r._value >= 1 and r._value < 2 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> map(fn: (r) => ({ r with alias:\"<2s\"})) \r\n\r\ndata2 = data\r\n|> filter(fn: (r) => ( r._value >= 2 and r._value < 5 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with _value:r._value*${sampling}}))\r\n|> map(fn: (r) => ({ r with alias:\"<5s\"}))\r\n\r\ndata3 = data\r\n|> filter(fn: (r) => ( r._value >= 5 and r._value < 10 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<10s\"}))\r\n\r\ndata4 = data\r\n|> filter(fn: (r) => ( r._value >= 10 and r._value < 20 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<20s\"}))\r\n\r\ndata5 = data\r\n|> filter(fn: (r) => ( r._value >= 20 and r._value < 60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<1m\"}))\r\n\r\ndata6 = data\r\n|> filter(fn: (r) => ( r._value >= 60 and r._value < 2*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<2m\"}))\r\n\r\ndata7 = data\r\n|> filter(fn: (r) => ( r._value >= 2*60 and r._value < 5*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<5m\"}))\r\n\r\ndata8 = data\r\n|> filter(fn: (r) => ( r._value >= 5*60 and  r._value < 10*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<10m\"}))\r\n\r\ndata9 = data\r\n|> filter(fn: (r) => ( r._value >= 10*60 and r._value < 20*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<20m\"}))\r\n\r\ndata10 = data\r\n|> filter(fn: (r) => ( r._value >= 20*60 and r._value < 60*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\"<1h\"}))\r\n\r\ndata11 = data\r\n|> filter(fn: (r) => ( r._value >= 60*60 ))\r\n|> count()\r\n|> map(fn: (r) => ({ r with alias:\">1h\"}))\r\n\r\nunion(tables :[data0, data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11]) \r\n|> group()\r\n|> pivot(rowKey: [\"_start\",\"_field\"], columnKey: [\"alias\"], valueColumn: \"_value\")\r\n|> yield()",
+          "refId": "delai etat reservation"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": false,
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => (\r\n  (r._field ==\"sessionAgeD\" or (r._field ==\"sessionHitDelayD\" and r.requestMethod==\"POST\") or r._field ==\"ctxAgeD\" ) \r\n))\r\n|> sample(n:${sampling})\r\n|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n|> filter(fn: (r) => \"${pageName}\"==\"all\" or r.name == \"${pageName}\")\r\n|> filter(fn: (r) => \"${pageModule}\"==\"all\" or r.pathPrefix == \"${pageModule}\")\r\n|> keep(columns: [\"_time\", \"_field\", \"_value\"])\r\n|> window(every: 1y, createEmpty:false )\r\n|> histogram(bins: [-1.0, 0.1, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0, 3600.0, 10000000000.0])\r\n//|> group()\r\n|> group(columns: [\"_field\"])\r\n|> difference(nonNegative: true)\r\n|> map(fn: (r) => ({ r with _value:r._value*float(v:${sampling})}))\r\n|> group()\r\n|> pivot(rowKey: [\"_start\",\"_field\"], columnKey: [\"le\"], valueColumn: \"_value\")\r\n|> yield()",
+          "refId": "A"
+        }
+      ],
+      "title": "Usage ctx & session",
+      "transformations": [
+        {
+          "disabled": true,
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "_start"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "0E+00": true,
+              "1E-01": true,
+              "_field": false,
+              "_start": true,
+              "_stop 1": true,
+              "_stop 2": true,
+              "aValiderReservation": true,
+              "annulerReservationAgent": true,
+              "annulerReservationUsagerGestion": true,
+              "annulerReservationUsagerNonConfirmee": true,
+              "enCoursReservation": false,
+              "expirationReservationEnCours": true,
+              "expirationReservationReservees": true
+            },
+            "indexByName": {
+              "_field": 1,
+              "_start": 0,
+              "max": 5,
+              "median": 2,
+              "qtl_70": 3,
+              "qtl_90": 4
+            },
+            "renameByName": {
+              "0E+00": "=0s",
+              "1.2E+02": "<2m",
+              "1.2E+03": "<20m",
+              "1.8E+03": "<30m",
+              "1E+00": "<1s",
+              "1E+01": "<10s",
+              "1E+10": ">1h",
+              "1E-01": "=0s",
+              "2E+00": "<2s",
+              "2E+01": "<20s",
+              "3.6E+03": "<1h",
+              "3E+01": "<30s",
+              "3E+02": "<5m",
+              "5E+00": "<5s",
+              "6E+01": "<1m",
+              "6E+02": "<10m",
+              "_stop 2": "",
+              "aValiderReservation": "Formulaires saisis",
+              "ageCreneau": "Disponible après publication",
+              "ageReservation": "Durée pour confirmer",
+              "ageReservationAU": "Durée de conservation du RDV avant annulation",
+              "ageReservationC": "Temps pour confirmer",
+              "ageReservationValidation": "Temps pour saisie formulaire",
+              "annulerReservationAgent": "RDV annulés Agent",
+              "annulerReservationUsager": "Rendez-vous annulés  par l'usager",
+              "annulerReservationUsagerGestion": "RDV annulés - Gestion",
+              "annulerReservationUsagerNonConfirmee": "RDV annulés - Choix créneaux",
+              "annulerReservationUsagerPreValidation": "RDV annulés - Mail confirmation",
+              "confirmerReservation": "RDV confirmés",
+              "delayCreneau": "Réservation en avance",
+              "delayCreneauAU": "Annulation avant le rendez-vous",
+              "delayCreneauC": "Confirmation avant le rendez-vous",
+              "duration": "Visite choix créneau",
+              "enCoursReservation": "Créneaux sélectionnés",
+              "expirationReservationEnCours": "Expiration 5m (avant formulaire)",
+              "expirationReservationReservees": "Expiration 15m (avant confirmation)"
+            }
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "id": 35,
+      "maxDataPoints": 100,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "mode": "count"
+          },
+          "yBuckets": {
+            "mode": "size"
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "max": 2000,
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 15
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": false
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "data = from(bucket:\"${app}\") \r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> filter(fn: (r) => (r._measurement == \"page\" and r.requestMethod==\"POST\" and r._field ==\"xForwardedFor\"\r\n                      and (\"${location}\"==\"all\" or r.location == \"${location}\"))\r\n)\r\n|> map(fn: (r) => ({ _value:\r\n  if(r._value== \"37.169.143.2x\" or r._value== \"37.65.157.3x\"  or r._value== \"37.19.217.19x\"\r\nor r._value==\"45.80.11.12x\"\r\nor r._value== \"77.198.152.5x\"\r\nor r._value== \"80.215.253.7x\"\r\nor r._value==\"81.65.146.11x\" or r._value==\"81.65.151.14x\" or r._value==\"81.65.151.4x\" or r._value==\"81.65.148.21x\"\r\nor r._value==\"84.17.43.4x\" or r._value==\"84.17.60.11x\" or r._value==\"84.17.60.12x\"\r\nor r._value==\"88.142.51.3x\" or r._value==\"88.165.220.21x\"\r\nor r._value==\"89.157.2.x\" or r._value==\"89.95.32.8x\" or r._value==\"89.157.4.16x\"\r\nor r._value==\"90.127.33.12x\" \r\nor r._value==\"91.165.145.3x\"   or r._value==\"91.165.69.9x\" or r._value==\"91.175.244.1x\" or r._value==\"91.170.77.11x\" \r\nor r._value==\"92.184.99.14x\" or r._value==\"92.184.97.20x\" or r._value==\"92.151.61.3x\"\r\nor r._value==\"109.13.17.12x\" or r._value==\"109.30.172.2x\"\r\nor r._value==\"138.199.26.8x\"\r\nor r._value==\"143.196.250.13x\"  \r\nor r._value==\"151.106.8.3x\" or r._value==\"151.106.8.4x\"\r\nor r._value==\"176.187.139.9x\" or r._value==\"176.136.227.5x\" or r._value==\"176.191.58.2x\" or r._value==\"176.158.165.12x\" or r._value==\"176.186.116.22x\"\r\nor r._value==\"185.24.186.8x\"\r\nor r._value==\"191.101.31.19x\" or r._value==\"191.101.31.17x\" or r._value==\"191.101.31.20x\" or r._value==\"191.101.31.9x\"\r\nor r._value==\"194.250.98.24x\"\r\nor r._value==\"212.195.71.20x\") \r\n  then r._value else \"autre\", _time:r._time}))\r\n|> duplicate(column: \"_value\", as:\"xForwardedFor\")\r\n|> keep(columns: [\"_time\", \"_value\", \"xForwardedFor\"]) \r\n|> window(every: $__interval, createEmpty:true )\r\n\r\ndata\r\n|> group(columns:[\"_start\",\"_stop\", \"xForwardedFor\"])\r\n|> count()\r\n|> group()\r\n|> pivot(rowKey: [\"_start\",\"_stop\"], columnKey: [\"xForwardedFor\"], valueColumn: \"_value\")\r\n|> yield()\r\n",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": true,
+          "query": "",
+          "refId": "B"
+        }
+      ],
+      "title": "Heatmap per Ips",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "#EAB839",
+                "value": 15
+              },
+              {
+                "color": "light-green",
+                "value": 30
+              },
+              {
+                "color": "semi-dark-green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*count.*/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sdtDev delay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "median delay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Days seen (over 14)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "orange",
+                      "value": 3
+                    },
+                    {
+                      "color": "red",
+                      "value": 7
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hits count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*delay.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 105
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hours seen (in range)"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 62
+      },
+      "id": 37,
+      "interval": "15m",
+      "maxDataPoints": 50,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 30,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "RDV confirmés"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": false,
+          "query": "data = from(bucket:\"${app}\") \r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n  |> filter(fn: (r) => (r._measurement == \"page\" and r._field == \"xForwardedFor\" and exists r.etatReservation))  \r\n  |> keep(columns: [\"_field\", \"_time\", \"_value\", \"etatReservation\"])\r\n  |> map(fn: (r) => ({ r with xForwardedFor: r._value}))\r\n  |> group(columns: [\"xForwardedFor\",\"etatReservation\"])\r\n  |> count()\r\n  |> pivot(rowKey:[\"xForwardedFor\"], columnKey: [\"etatReservation\"], valueColumn: \"_value\") \r\n  |> group()\r\n  \r\n  |> filter(fn: (r) => (r.confirmerReservation>2))\r\n|> yield()",
+          "refId": "delai etat reservation"
+        }
+      ],
+      "title": "Rdv per Ip",
+      "transformations": [
+        {
+          "disabled": true,
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "_start"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_field": false,
+              "_start": true,
+              "_stop 1": true,
+              "_stop 2": true,
+              "aValiderReservation": false,
+              "annulerReservationAgent": true,
+              "annulerReservationUsagerGestion": true,
+              "annulerReservationUsagerNonConfirmee": true,
+              "enCoursReservation": false,
+              "expirationReservationEnCours": true,
+              "expirationReservationReservees": true
+            },
+            "indexByName": {
+              "aValiderReservation": 2,
+              "confirmerReservation": 3,
+              "enCoursReservation": 1,
+              "xForwardedFor": 0
+            },
+            "renameByName": {
+              "_stop 2": "",
+              "aValiderReservation": "Formulaires saisis",
+              "ageCreneau": "Disponible après publication",
+              "ageReservation": "Durée pour confirmer",
+              "ageReservationAU": "Durée de conservation du RDV avant annulation",
+              "ageReservationC": "Temps pour confirmer",
+              "ageReservationValidation": "Temps pour saisie formulaire",
+              "annulerReservationAgent": "RDV annulés Agent",
+              "annulerReservationUsager": "Rendez-vous annulés  par l'usager",
+              "annulerReservationUsagerGestion": "RDV annulés - Gestion",
+              "annulerReservationUsagerNonConfirmee": "RDV annulés - Choix créneaux",
+              "annulerReservationUsagerPreValidation": "RDV annulés - Mail confirmation",
+              "confirmerReservation": "RDV confirmés",
+              "count": "hits count",
+              "countDays": "Days seen (over 14)",
+              "countHoursInRange": "Hours seen (in range)",
+              "delayCreneau": "Réservation en avance",
+              "delayCreneauAU": "Annulation avant le rendez-vous",
+              "delayCreneauC": "Confirmation avant le rendez-vous",
+              "duration": "Visite choix créneau",
+              "enCoursReservation": "Créneaux sélectionnés",
+              "expirationReservationEnCours": "Expiration 5m (avant formulaire)",
+              "expirationReservationReservees": "Expiration 15m (avant confirmation)",
+              "maxHitDelay": "max delay",
+              "medianHitDelay": "median delay",
+              "stdDevHitDelay": "sdtDev delay",
+              "xForwardedFor": "Ip"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "#EAB839",
+                "value": 15
+              },
+              {
+                "color": "light-green",
+                "value": 30
+              },
+              {
+                "color": "semi-dark-green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*count.*/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sdtDev delay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "median delay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Days seen (over 14)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "orange",
+                      "value": 3
+                    },
+                    {
+                      "color": "red",
+                      "value": 7
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hits count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*delay.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 105
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hours seen (in range)"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 12,
+        "x": 0,
+        "y": 69
+      },
+      "id": 40,
+      "interval": "15m",
+      "maxDataPoints": 50,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 30,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "RDV confirmés"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": false,
+          "query": "data = from(bucket:\"${app}\") \r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n  |> filter(fn: (r) => (r._measurement == \"page\" and r._field == \"xForwardedFor\" and exists r.reservationMailDomain))  \r\n  |> keep(columns: [\"_field\", \"_time\", \"_value\", \"reservationMailDomain\"])\r\n  |> map(fn: (r) => ({ r with xForwardedFor: r._value}))\r\n  |> group(columns: [\"xForwardedFor\",\"reservationMailDomain\"])\r\n  |> count()\r\n  |> filter(fn: (r) => (r._value>2))\r\n  |> pivot(rowKey:[\"xForwardedFor\"], columnKey: [\"reservationMailDomain\"], valueColumn: \"_value\") \r\n  |> group()  \r\n|> yield()",
+          "refId": "delai etat reservation"
+        }
+      ],
+      "title": "Rdv per Ip per email domain",
+      "transformations": [
+        {
+          "disabled": true,
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "_start"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_field": false,
+              "_start": true,
+              "_stop 1": true,
+              "_stop 2": true,
+              "aValiderReservation": false,
+              "annulerReservationAgent": true,
+              "annulerReservationUsagerGestion": true,
+              "annulerReservationUsagerNonConfirmee": true,
+              "enCoursReservation": false,
+              "expirationReservationEnCours": true,
+              "expirationReservationReservees": true
+            },
+            "indexByName": {
+              "aValiderReservation": 2,
+              "confirmerReservation": 3,
+              "enCoursReservation": 1,
+              "xForwardedFor": 0
+            },
+            "renameByName": {
+              "_stop 2": "",
+              "aValiderReservation": "Formulaires saisis",
+              "ageCreneau": "Disponible après publication",
+              "ageReservation": "Durée pour confirmer",
+              "ageReservationAU": "Durée de conservation du RDV avant annulation",
+              "ageReservationC": "Temps pour confirmer",
+              "ageReservationValidation": "Temps pour saisie formulaire",
+              "annulerReservationAgent": "RDV annulés Agent",
+              "annulerReservationUsager": "Rendez-vous annulés  par l'usager",
+              "annulerReservationUsagerGestion": "RDV annulés - Gestion",
+              "annulerReservationUsagerNonConfirmee": "RDV annulés - Choix créneaux",
+              "annulerReservationUsagerPreValidation": "RDV annulés - Mail confirmation",
+              "confirmerReservation": "RDV confirmés",
+              "count": "hits count",
+              "countDays": "Days seen (over 14)",
+              "countHoursInRange": "Hours seen (in range)",
+              "delayCreneau": "Réservation en avance",
+              "delayCreneauAU": "Annulation avant le rendez-vous",
+              "delayCreneauC": "Confirmation avant le rendez-vous",
+              "duration": "Visite choix créneau",
+              "enCoursReservation": "Créneaux sélectionnés",
+              "expirationReservationEnCours": "Expiration 5m (avant formulaire)",
+              "expirationReservationReservees": "Expiration 15m (avant confirmation)",
+              "maxHitDelay": "max delay",
+              "medianHitDelay": "median delay",
+              "stdDevHitDelay": "sdtDev delay",
+              "xForwardedFor": "Ip"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-vertigo"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "#EAB839",
+                "value": 15
+              },
+              {
+                "color": "light-green",
+                "value": 30
+              },
+              {
+                "color": "semi-dark-green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*count.*/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ecartQuantilHitDelay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "median delay"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Days seen (over 14)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "orange",
+                      "value": 3
+                    },
+                    {
+                      "color": "red",
+                      "value": 7
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hits count"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*delay.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 105
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hours seen (in range)"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 12,
+        "x": 12,
+        "y": 69
+      },
+      "id": 34,
+      "interval": "15m",
+      "maxDataPoints": 50,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 30,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "hits count"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-vertigo"
+          },
+          "hide": false,
+          "query": "data = from(bucket:\"${app}\") \r\n  //|> range(start: -7d, stop:now())\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => (r._measurement == \"page\" and r.requestMethod==\"POST\"))\r\n  //|> filter(fn: (r) => \"${location}\"==\"all\" or r.location == \"${location}\")\r\n  |> filter(fn: (r) => r.pathPrefix == \"reservation\")\r\n  |> filter(fn: (r) => r._field == \"xForwardedFor\" or r._field==\"sessionHitDelayD\")\r\n  |> keep(columns: [\"_field\", \"_time\", \"_value\"])\r\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> filter(fn: (r) => exists r.xForwardedFor)\r\n  |> rename(columns: {sessionHitDelayD:\"_value\"})\r\n  |> sample(n:${sampling})\r\n  |> group(columns: [\"xForwardedFor\"])\r\n  \r\ndata0 = data\r\n|> count()\r\n|> map(fn: (r) => ({ r with  _value:r._value*${sampling}}))\r\n|> toFloat()\r\n|> map(fn: (r) => ({ r with alias:\"count\"}))\r\n\r\ndata1 = data\r\n|> max()\r\n|> map(fn: (r) => ({ r with alias:\"maxHitDelay\"})) \r\n\r\ndata2 = data\r\n//=|> filter(fn: (r) => (r._value > 0 ) )\r\n|> median()\r\n|> map(fn: (r) => ({ r with alias:\"medianHitDelay\"})) \r\n\r\ndata3 = data\r\n|> window(every: 1d, createEmpty:false )\r\n|> count()\r\n|> group(columns:[\"xForwardedFor\"])\r\n|> count()\r\n|> toFloat()\r\n|> map(fn: (r) => ({ r with alias:\"countDays\"}))\r\n\r\ndata5 = data\r\n|> range(start: v.timeRangeStart, stop:v.timeRangeStop) \r\n|> window(every: 1h, createEmpty:false )\r\n|> count()\r\n|> group(columns:[\"xForwardedFor\"])\r\n|> count()\r\n|> toFloat()\r\n|> map(fn: (r) => ({ r with alias:\"countHoursInRange\"}))\r\n\r\n\r\ndata4 = data\r\n//|> stddev()\r\n|> quantile(q: 0.70)\r\n|> map(fn: (r) => ({ r with alias:\"q70HitDelay\"})) \r\n\r\ndata6 = data\r\n//|> stddev()\r\n|> quantile(q: 0.30)\r\n|> map(fn: (r) => ({ r with alias:\"q30HitDelay\"})) \r\n\r\n\r\nunion(tables :[data0, data1, data2, data3, data4, data5, data6]) \r\n|> group()\r\n|> pivot(rowKey: [\"xForwardedFor\"], columnKey: [\"alias\"], valueColumn: \"_value\")\r\n|> map(fn: (r) => ({ r with ecartQuantilHitDelay:(r.q70HitDelay-r.q30HitDelay)}))\r\n|> drop(columns: [\"q70HitDelay\", \"q30HitDelay\"])\r\n|> filter(fn: (r) => (r.count >= 1000 ) )\r\n|> yield()",
+          "refId": "delai etat reservation"
+        }
+      ],
+      "title": "Hits per Ip",
+      "transformations": [
+        {
+          "disabled": true,
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "_start"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_field": false,
+              "_start": true,
+              "_stop 1": true,
+              "_stop 2": true,
+              "aValiderReservation": true,
+              "annulerReservationAgent": true,
+              "annulerReservationUsagerGestion": true,
+              "annulerReservationUsagerNonConfirmee": true,
+              "enCoursReservation": false,
+              "expirationReservationEnCours": true,
+              "expirationReservationReservees": true
+            },
+            "indexByName": {
+              "count": 4,
+              "countDays": 5,
+              "countHoursInRange": 6,
+              "ecartQuantilHitDelay": 3,
+              "maxHitDelay": 1,
+              "medianHitDelay": 2,
+              "xForwardedFor": 0
+            },
+            "renameByName": {
+              "_stop 2": "",
+              "aValiderReservation": "Formulaires saisis",
+              "ageCreneau": "Disponible après publication",
+              "ageReservation": "Durée pour confirmer",
+              "ageReservationAU": "Durée de conservation du RDV avant annulation",
+              "ageReservationC": "Temps pour confirmer",
+              "ageReservationValidation": "Temps pour saisie formulaire",
+              "annulerReservationAgent": "RDV annulés Agent",
+              "annulerReservationUsager": "Rendez-vous annulés  par l'usager",
+              "annulerReservationUsagerGestion": "RDV annulés - Gestion",
+              "annulerReservationUsagerNonConfirmee": "RDV annulés - Choix créneaux",
+              "annulerReservationUsagerPreValidation": "RDV annulés - Mail confirmation",
+              "confirmerReservation": "RDV confirmés",
+              "count": "hits count",
+              "countDays": "Days seen (over 14)",
+              "countHoursInRange": "Hours seen (in range)",
+              "delayCreneau": "Réservation en avance",
+              "delayCreneauAU": "Annulation avant le rendez-vous",
+              "delayCreneauC": "Confirmation avant le rendez-vous",
+              "duration": "Visite choix créneau",
+              "ecartQuantilHitDelay": "delay range q70-q30",
+              "enCoursReservation": "Créneaux sélectionnés",
+              "expirationReservationEnCours": "Expiration 5m (avant formulaire)",
+              "expirationReservationReservees": "Expiration 15m (avant confirmation)",
+              "maxHitDelay": "max delay",
+              "medianHitDelay": "median delay",
+              "stdDevHitDelay": "sdtDev delay",
+              "xForwardedFor": "Ip"
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
-  "refresh": "30m",
+  "refresh": false,
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
@@ -3417,7 +5356,7 @@
       {
         "allValue": "all",
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "All",
           "value": "$__all"
         },
@@ -3463,6 +5402,59 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "2",
+          "value": "2"
+        },
+        "hide": 1,
+        "includeAll": false,
+        "label": "sampling",
+        "multi": false,
+        "name": "sampling",
+        "options": [
+          {
+            "selected": false,
+            "text": "1",
+            "value": "1"
+          },
+          {
+            "selected": true,
+            "text": "2",
+            "value": "2"
+          },
+          {
+            "selected": false,
+            "text": "5",
+            "value": "5"
+          },
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "20",
+            "value": "20"
+          },
+          {
+            "selected": false,
+            "text": "50",
+            "value": "50"
+          },
+          {
+            "selected": false,
+            "text": "100",
+            "value": "100"
+          }
+        ],
+        "query": "1,2,5,10,20,50,100",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
@@ -3474,6 +5466,6 @@
   "timezone": "",
   "title": "Vertigo-v3",
   "uid": "eBtobwFVz",
-  "version": 12,
+  "version": 41,
   "weekStart": ""
 }
