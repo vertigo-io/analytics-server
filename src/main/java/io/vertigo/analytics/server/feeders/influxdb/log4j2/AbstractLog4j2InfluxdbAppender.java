@@ -41,6 +41,7 @@ abstract class AbstractLog4j2InfluxdbAppender<O> extends AbstractAppender {
 	@Override
 	public void stop() {
 		if (writeApiBulk != null) {
+			writeApiBulk.flush();
 			writeApiBulk.close();
 		}
 		if (influxDBClient != null) {
@@ -82,7 +83,7 @@ abstract class AbstractLog4j2InfluxdbAppender<O> extends AbstractAppender {
 				for (final O batchEvent : logMessage.getEvents()) {
 					writeApiBulk.writePoints(logMessage.getAppName(), org, eventToPoints(batchEvent, logMessage.getHost()));
 				}
-				writeApiBulk.flush();
+
 			}
 			//db.write(logMessage.getAppName(), "autogen", eventToPoints(logMessage.getEvent(), logMessage.getHost()));
 		} catch (final JsonSyntaxException e) {
