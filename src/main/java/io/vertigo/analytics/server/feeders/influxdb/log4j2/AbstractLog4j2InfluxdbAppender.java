@@ -17,6 +17,7 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.WriteApiBlocking;
+import com.influxdb.client.WriteOptions;
 import com.influxdb.client.write.Point;
 
 import io.vertigo.analytics.server.LogMessage;
@@ -57,7 +58,9 @@ abstract class AbstractLog4j2InfluxdbAppender<O> extends AbstractAppender {
 		super(name, filter, null, true);
 		//---
 		influxDBClient = InfluxDBClientFactory.create(serverUrl, token.toCharArray(), org);
-		writeApiBulk = influxDBClient.makeWriteApi(); //use as singleton
+		writeApiBulk = influxDBClient.makeWriteApi(WriteOptions.builder()
+				.bufferLimit(50_000)
+				.build()); //use as singleton
 		writeApiBlocking = influxDBClient.getWriteApiBlocking(); //use as singleton
 		bucketApi = influxDBClient.getBucketsApi(); //use as singleton
 		this.org = org;
