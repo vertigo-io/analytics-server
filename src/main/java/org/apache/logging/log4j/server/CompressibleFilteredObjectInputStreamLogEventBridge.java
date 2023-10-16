@@ -76,8 +76,9 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 	}
 
 	@Override
-	public void logEvents(final InputStream inputStream, final LogEventListener logEventListener)
+	public int logEvents(final InputStream inputStream, final LogEventListener logEventListener)
 			throws IOException {
+		int nbEvents = 0;
 		try {
 			final LogEvent event;
 			if (inputStream instanceof DelimitedInputStream) {
@@ -90,9 +91,11 @@ public class CompressibleFilteredObjectInputStreamLogEventBridge extends Abstrac
 				event = (LogEvent) ((ObjectInputStream) inputStream).readObject();
 			}
 			logEventListener.log(event);
+			nbEvents++;
 		} catch (final ClassNotFoundException e) {
 			throw new IOException(e);
 		}
+		return nbEvents;
 	}
 
 	@Override

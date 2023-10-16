@@ -73,14 +73,23 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 		@Override
 		public void run() {
 			final EntryMessage entry = logger.traceEntry();
+			long lastReceiveLogTime = 0;
+			long deltaPacketsReceived = 0;
 			boolean closed = false;
 			try {
 				try {
 					logger.info("Start listening events with {}", socketMode);
 					while (!shutdown) {
 						logger.debug("Listening events");
-						logEventInput.logEvents(inputStream, TcpSocketServer.this);
-						logger.info("Received events");
+						deltaPacketsReceived += logEventInput.logEvents(inputStream, TcpSocketServer.this);
+						if (logger.isDebugEnabled()) {
+							logger.debug("Received {} events", deltaPacketsReceived);
+							deltaPacketsReceived = 0;
+						} else if (System.currentTimeMillis() - lastReceiveLogTime > 5 * 60 * 1000) { //log every 5 minutes
+							logger.info("Received {} events", deltaPacketsReceived);
+							lastReceiveLogTime = System.currentTimeMillis();
+							deltaPacketsReceived = 0;
+						}
 					}
 				} catch (final EOFException e) {
 					closed = true;

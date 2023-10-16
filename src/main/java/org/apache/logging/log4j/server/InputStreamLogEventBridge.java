@@ -50,8 +50,8 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 	abstract protected int[] getEventIndices(final String text, int beginIndex);
 
 	@Override
-	public void logEvents(final InputStream inputStream, final LogEventListener logEventListener)
-			throws IOException, ParseException {
+	public int logEvents(final InputStream inputStream, final LogEventListener logEventListener) throws IOException, ParseException {
+		int nbEvents = 0;
 		String workingText = Strings.EMPTY;
 		try {
 			// Allocate buffer once
@@ -85,6 +85,7 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 						final String textEvent = workingText = text.substring(eventStartMarkerIndex, eventEndXmlIndex);
 						final LogEvent logEvent = unmarshal(textEvent);
 						logEventListener.log(logEvent);
+						nbEvents++;
 						beginIndex = eventEndXmlIndex;
 					} else {
 						// No more events or partial XML only in the buffer.
@@ -94,6 +95,7 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 					}
 				}
 			}
+			return nbEvents;
 		} catch (final EOFException ex) {
 			//close silently
 			throw ex;

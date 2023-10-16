@@ -37,17 +37,17 @@ public interface LogEventBridge<T extends InputStream> {
 
 	/**
 	 * Reads {@link LogEvent}s from the given input stream and logs them as they are discovered on the given logger.
-	 * 
+	 *
 	 * @param inputStream
 	 *            the input stream to read
 	 * @param logEventListener
 	 *            TODO
 	 */
-	void logEvents(T inputStream, LogEventListener logEventListener) throws IOException, ParseException;
+	int logEvents(T inputStream, LogEventListener logEventListener) throws IOException, ParseException;
 
 	/**
 	 * Wraps the given stream if needed.
-	 * 
+	 *
 	 * @param inputStream
 	 *            the stream to wrap
 	 * @return the wrapped stream or the given stream.
