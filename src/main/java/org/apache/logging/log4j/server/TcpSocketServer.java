@@ -83,10 +83,10 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 						logger.debug("Listening events");
 						deltaPacketsReceived += logEventInput.logEvents(inputStream, TcpSocketServer.this);
 						if (logger.isDebugEnabled()) {
-							logger.debug("Received {} events", deltaPacketsReceived);
+							logger.debug("Received {} batchs events", deltaPacketsReceived);
 							deltaPacketsReceived = 0;
 						} else if (System.currentTimeMillis() - lastReceiveLogTime > 5 * 60 * 1000) { //log every 5 minutes
-							logger.info("Received {} events", deltaPacketsReceived);
+							logger.info("Received {} batchs events", deltaPacketsReceived);
 							lastReceiveLogTime = System.currentTimeMillis();
 							deltaPacketsReceived = 0;
 						}
@@ -111,6 +111,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				}
 			} finally {
 				handlers.remove(Long.valueOf(getId()));
+				logger.info("Received {} batchs events", deltaPacketsReceived);
 				logger.info("Stop listening events with {}", socketMode);
 			}
 			logger.traceExit(entry);
@@ -209,12 +210,16 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				handlers.put(Long.valueOf(handler.getId()), handler);
 				handler.start();
 			} catch (final IOException e) {
-				if (serverSocket.isClosed() || e.getMessage().contains("Connection reset")) {
+				if (serverSocket.isClosed()) {
 					// OK we're done.
-					logger.traceExit(entry);
 					return;
 				}
-				logger.error("Exception encountered on accept. Ignoring. Stack trace :", e);
+				if (e.getMessage().equals("Connection reset")) {
+					//simpler log for standard exceptions
+					logger.info("Exception encountered on accept. Ignoring. Message: {}", e.getMessage());
+				} else {
+					logger.error("Exception encountered on accept. Ignoring. Stack trace :", e);
+				}
 			}
 		}
 		for (final Map.Entry<Long, SocketHandler> handlerEntry : handlers.entrySet()) {
