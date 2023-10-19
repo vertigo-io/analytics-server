@@ -44,8 +44,8 @@ import org.apache.logging.log4j.message.EntryMessage;
  */
 public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer<T> {
 
-	private static final int CLIENT_SOCKET_READ_TIMEOUT = 60_000; //client socket read, timeout : 60s should wait for client to flush buffer
-	private static final int SERVER_SOCKET_ACCEPT_TIMEOUT = 0; //accept socket timeout : 0=infinite : must wait for new connections
+	private static final int CLIENT_SOCKET_READ_TIMEOUT = 5 * 60 * 1000; //client socket read, timeout = 5min : should wait for client to flush buffer
+	private static final int SERVER_SOCKET_ACCEPT_TIMEOUT = 0; //accept socket timeout = 0=infinite : must wait for new connections
 
 	private final ConcurrentMap<Long, SocketHandler> handlers = new ConcurrentHashMap<>();
 
