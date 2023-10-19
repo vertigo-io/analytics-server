@@ -49,25 +49,15 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 */
 	private class SocketHandler extends Log4jThread {
 		protected final Logger logger;
-
-		private final T inputStream;
 		private final Socket socket;
-		private final String socketMode;
 
 		private volatile boolean shutdown = false;
 
-		public SocketHandler(final Socket socket) throws IOException {
+		public SocketHandler(final Socket socket) {
+			//this constructor must be safe : may lock sockets' receiver thread and no more connections could be accepted
 			this.socket = socket;
-			this.inputStream = logEventInput.wrapStream(socket.getInputStream());
 			this.logger = LogManager.getLogger(this.getClass().getSimpleName() + socket.getInetAddress() + ':' + socket.getPort() + "->" + socket.getLocalPort());
-
-			if (inputStream instanceof DelimitedInputStream) {
-				socketMode = logEventInput.getClass().getSimpleName() + " mode:" + ((DelimitedInputStream) inputStream).getCompressionType();
-			} else {
-				socketMode = logEventInput.getClass().getSimpleName() + " mode: NONE";
-			}
-
-			logger.debug("Create SocketHandler with {}", socketMode);
+			logger.debug("Create SocketHandler");
 		}
 
 		@Override
@@ -76,7 +66,24 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			long lastReceiveLogTime = 0;
 			long deltaPacketsReceived = 0;
 			boolean closed = false;
+			final T inputStream;
+			String socketMode = "UNKNOWN";
+
 			try {
+				logger.debug("Init SocketHandler, wrap inputStream");
+				try {
+					inputStream = logEventInput.wrapStream(socket.getInputStream());
+				} catch (final IOException e) {
+					logger.error("IOException encountered while initializing socket", e);
+					return;
+				}
+				if (inputStream instanceof DelimitedInputStream) {
+					socketMode = logEventInput.getClass().getSimpleName() + " mode:" + ((DelimitedInputStream) inputStream).getCompressionType();
+				} else {
+					socketMode = logEventInput.getClass().getSimpleName() + " mode: NONE";
+				}
+				logger.debug("Ready SocketHandler with {}", socketMode);
+
 				try {
 					logger.info("Start listening events with {}", socketMode);
 					while (!shutdown) {
@@ -147,7 +154,17 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 */
 	@SuppressWarnings("resource")
 	public TcpSocketServer(final int port, final int backlog, final InetAddress localBindAddress, final LogEventBridge<T> logEventInput) throws IOException {
-		this(port, logEventInput, new ServerSocket(port, backlog, localBindAddress));
+		this(port, logEventInput, createServerSocket(port, backlog, localBindAddress));
+	}
+
+	private static ServerSocket createServerSocket(final int port, final int backlog, final InetAddress localBindAddress) throws IOException {
+		final ServerSocket serverSocket = new ServerSocket(port, backlog, localBindAddress);
+		serverSocket.setSoTimeout(0); //accept socket timeout : infinite : must wait for new connections
+		return serverSocket;
+	}
+
+	private static ServerSocket createServerSocket(final int port) throws IOException {
+		return createServerSocket(port, 50, null);
 	}
 
 	/**
@@ -162,7 +179,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 */
 	@SuppressWarnings("resource")
 	public TcpSocketServer(final int port, final LogEventBridge<T> logEventInput) throws IOException {
-		this(port, logEventInput, new ServerSocket(port));
+		this(port, logEventInput, createServerSocket(port));
 	}
 
 	/**
@@ -197,14 +214,18 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				// Accept incoming connections.
 				logger.info("Listening for a connection {}...", serverSocket);
 				@SuppressWarnings("resource") // clientSocket is closed during SocketHandler shutdown
-				final Socket clientSocket = serverSocket.accept();
+				final Socket clientSocket = serverSocket.accept(); //use soTimeout socket parameter
 				logger.debug("Accepted connection on {}...", serverSocket);
-				logger.info("Socket accepted: {}", clientSocket);
-				clientSocket.setSoLinger(true, 0);
 
 				// accept() will block until a client connects to the server.
 				// If execution reaches this point, then it means that a client
 				// socket has been accepted.
+
+				logger.info("Socket accepted: {}", clientSocket);
+				//Must defined socket parameters
+				clientSocket.setSoLinger(true, 0); //define that close will be force to close immediatly
+				clientSocket.setReceiveBufferSize(clientSocket.getReceiveBufferSize());
+				clientSocket.setSoTimeout(10000);
 
 				final SocketHandler handler = new SocketHandler(clientSocket);
 				handlers.put(Long.valueOf(handler.getId()), handler);
