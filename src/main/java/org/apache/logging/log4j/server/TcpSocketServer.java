@@ -44,6 +44,13 @@ import org.apache.logging.log4j.message.EntryMessage;
  */
 public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer<T> {
 
+	private static final int CLIENT_SOCKET_READ_TIMEOUT = 60_000; //client socket read, timeout : 60s should wait for client to flush buffer
+	private static final int SERVER_SOCKET_ACCEPT_TIMEOUT = 0; //accept socket timeout : 0=infinite : must wait for new connections
+
+	private final ConcurrentMap<Long, SocketHandler> handlers = new ConcurrentHashMap<>();
+
+	private final ServerSocket serverSocket;
+
 	/**
 	 * Thread that processes the events.
 	 */
@@ -120,6 +127,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				handlers.remove(Long.valueOf(getId()));
 				logger.info("Received {} batchs events", deltaPacketsReceived);
 				logger.info("Stop listening events with {}", socketMode);
+				Closer.closeSilently(socket);
 			}
 			logger.traceExit(entry);
 		}
@@ -132,10 +140,6 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			interrupt();
 		}
 	}
-
-	private final ConcurrentMap<Long, SocketHandler> handlers = new ConcurrentHashMap<>();
-
-	private final ServerSocket serverSocket;
 
 	/**
 	 * Constructor.
@@ -159,7 +163,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 
 	private static ServerSocket createServerSocket(final int port, final int backlog, final InetAddress localBindAddress) throws IOException {
 		final ServerSocket serverSocket = new ServerSocket(port, backlog, localBindAddress);
-		serverSocket.setSoTimeout(0); //accept socket timeout : infinite : must wait for new connections
+		serverSocket.setSoTimeout(SERVER_SOCKET_ACCEPT_TIMEOUT);
 		return serverSocket;
 	}
 
@@ -224,8 +228,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				logger.info("Socket accepted: {}", clientSocket);
 				//Must defined socket parameters
 				clientSocket.setSoLinger(true, 0); //define that close will be force to close immediatly
-				clientSocket.setReceiveBufferSize(clientSocket.getReceiveBufferSize());
-				clientSocket.setSoTimeout(10000);
+				clientSocket.setSoTimeout(CLIENT_SOCKET_READ_TIMEOUT);
 
 				final SocketHandler handler = new SocketHandler(clientSocket);
 				handlers.put(Long.valueOf(handler.getId()), handler);
