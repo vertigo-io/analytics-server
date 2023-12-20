@@ -20,6 +20,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.LogEventListener;
@@ -42,7 +43,7 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 	private final boolean detectCompression;
 
 	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final boolean detectCompression) {
-		this(parser, 1024, Charset.defaultCharset(), detectCompression);
+		this(parser, 1024, StandardCharsets.UTF_8, detectCompression);
 	}
 
 	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset, final boolean detectCompression) {
@@ -109,21 +110,21 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 
 	/*private class UncloseableInputStream extends InputStream {
 		private final InputStream in;
-	
+
 		public UncloseableInputStream(final InputStream in) {
 			this.in = in;
 		}
-	
+
 		@Override
 		public int read() throws IOException {
 			return in.read();
 		}
-	
+
 		@Override
 		public int read(final byte b[]) throws IOException {
 			return in.read(b, 0, b.length);
 		}
-	
+
 		@Override
 		public int read(final byte b[], final int off, final int len) throws IOException {
 			return in.read(b, off, len);

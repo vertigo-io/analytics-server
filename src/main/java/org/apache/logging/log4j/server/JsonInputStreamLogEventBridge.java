@@ -18,6 +18,7 @@ package org.apache.logging.log4j.server;
 
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.parser.JsonLogEventParser;
@@ -36,11 +37,11 @@ public class JsonInputStreamLogEventBridge extends InputStreamLogEventBridge {
 	private static final char JSON_STR_DELIM = Chars.DQUOTE;
 
 	public JsonInputStreamLogEventBridge() {
-		this(new JsonLogEventParser(), 1024, Charset.defaultCharset());
+		this(new JsonLogEventParser(), 1024, StandardCharsets.UTF_8);
 	}
 
 	public JsonInputStreamLogEventBridge(final TextLogEventParser parser) {
-		this(parser, 1024, Charset.defaultCharset());
+		this(parser, 1024, StandardCharsets.UTF_8);
 	}
 
 	public JsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset) {
