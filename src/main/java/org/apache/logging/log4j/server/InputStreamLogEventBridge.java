@@ -19,6 +19,8 @@ package org.apache.logging.log4j.server;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.Charset;
 
 import org.apache.logging.log4j.core.LogEvent;
@@ -54,12 +56,14 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 		int nbEvents = 0;
 		String workingText = Strings.EMPTY;
 		try {
+			final Reader inReader = new InputStreamReader(inputStream, charset);
+
 			// Allocate buffer once
-			final byte[] buffer = new byte[bufferSize];
+			final char[] buffer = new char[bufferSize];
 			String textRemains = workingText = Strings.EMPTY;
 			while (true) {
 				// Process until the stream is EOF.
-				final int streamReadLength = inputStream.read(buffer);
+				final int streamReadLength = inReader.read(buffer);
 				if (streamReadLength == END) {
 					// The input stream is EOF
 					if (workingText.isEmpty()) {
@@ -67,7 +71,7 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 					}
 					break;
 				}
-				final String text = workingText = textRemains + new String(buffer, 0, streamReadLength, charset);
+				final String text = workingText = textRemains + new String(buffer, 0, streamReadLength);
 				int beginIndex = 0;
 				while (true) {
 					// Extract and log all XML events in the buffer
