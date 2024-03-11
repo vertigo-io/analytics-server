@@ -1,6 +1,6 @@
 FROM eclipse-temurin:17-jre
 
-COPY ./bin/vertigo-analytics-server-0.13.1-jar-with-dependencies.jar /usr/app/bin/
+COPY ./bin/vertigo-analytics-server-0.14.0-jar-with-dependencies.jar /usr/app/bin/
 COPY ./bin/wait-for-it.sh /usr/app/bin/
 COPY ./bin/start.sh /usr/app/bin/
 COPY ./conf/log4j2.xml /usr/app/conf/
