@@ -100,12 +100,14 @@ public class InfluxdbUtil {
 
 		final Map<String, String> properedTags = process.getTags().entrySet()
 				.stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
 				.collect(Collectors.toMap(
 						entry -> properString(entry.getKey()),
 						entry -> properString(entry.getValue())));
 
 		final Map<String, String> properedMetadatas = process.getMetadatas().entrySet()
 				.stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
 				.collect(Collectors.toMap(
 						entry -> properString(entry.getKey()),
 						entry -> properString(entry.getValue())));
@@ -199,7 +201,7 @@ public class InfluxdbUtil {
 
 	private static String properString(final String string) {
 		if (string == null) {
-			return string;
+			return ""; //can't send null to influxDb
 		}
 		return string.replaceAll("\n", " ");
 	}
