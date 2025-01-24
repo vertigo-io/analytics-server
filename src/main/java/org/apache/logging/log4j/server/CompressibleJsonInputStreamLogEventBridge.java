@@ -16,16 +16,22 @@
  */
 package org.apache.logging.log4j.server;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LogEventListener;
+import org.apache.logging.log4j.core.parser.ParseException;
 import org.apache.logging.log4j.core.parser.TextLogEventParser;
+import org.apache.logging.log4j.server.CompressInputStreamHelper.CompressionType;
 import org.apache.logging.log4j.util.Chars;
 
 /**
  * Reads and logs Compressible JSON {@link LogEvent}s from an {@link InputStream}..
+ * This is use as a singleton instance.
  */
 public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEventBridge {
 
@@ -34,15 +40,15 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 	private static final char EVENT_START_MARKER = '{';
 	private static final char JSON_ESC = '\\';
 	private static final char JSON_STR_DELIM = Chars.DQUOTE;
-	private final boolean compress;
+	private final boolean detectCompression;
 
-	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final boolean compress) {
-		this(parser, 1024, Charset.defaultCharset(), compress);
+	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final boolean detectCompression) {
+		this(parser, 1024, StandardCharsets.UTF_8, detectCompression);
 	}
 
-	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset, final boolean compress) {
+	public CompressibleJsonInputStreamLogEventBridge(final TextLogEventParser parser, final int bufferSize, final Charset charset, final boolean detectCompression) {
 		super(parser, bufferSize, charset, String.valueOf(EVENT_END_MARKER));
-		this.compress = compress;
+		this.detectCompression = detectCompression;
 	}
 
 	@Override
@@ -91,8 +97,53 @@ public class CompressibleJsonInputStreamLogEventBridge extends InputStreamLogEve
 	}
 
 	@Override
+	public int logEvents(final InputStream inputStream, final LogEventListener logEventListener) throws IOException, ParseException {
+		// The default is to return the same object as given.
+		if (inputStream instanceof DelimitedInputStream) {
+			try (var usedInputStream = CompressInputStreamHelper.nextTokenStream((DelimitedInputStream) inputStream, null)) {
+				return super.logEvents(usedInputStream, logEventListener);
+			} //must close added streams, but not the inner input
+		} else {
+			return super.logEvents(inputStream, logEventListener); //mode stream : don't close
+		}
+	}
+
+	/*private class UncloseableInputStream extends InputStream {
+		private final InputStream in;
+
+		public UncloseableInputStream(final InputStream in) {
+			this.in = in;
+		}
+
+		@Override
+		public int read() throws IOException {
+			return in.read();
+		}
+
+		@Override
+		public int read(final byte b[]) throws IOException {
+			return in.read(b, 0, b.length);
+		}
+
+		@Override
+		public int read(final byte b[], final int off, final int len) throws IOException {
+			return in.read(b, off, len);
+		}
+	}*/
+
+	// The default is to return the same object as given.
+	@SuppressWarnings("unchecked")
+	@Override
 	public InputStream wrapStream(final InputStream inputStream) throws IOException {
-		return CompressInputStreamHelper.wrapStream(inputStream, compress);
+		//call at socket opening
+		if (detectCompression) {
+			//if compressed : recreate Gzip for each object
+			final BufferedInputStream usedInputStream = new BufferedInputStream(inputStream);
+			//if compressed, we need to skip the header
+			final CompressionType compressionType = CompressInputStreamHelper.detectCompressionPrefix(usedInputStream);
+			return CompressInputStreamHelper.wrapStream(usedInputStream, compressionType);
+		}
+		return inputStream;
 	}
 
 }

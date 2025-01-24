@@ -26,6 +26,7 @@ import org.apache.logging.log4j.core.parser.ParseException;
 import org.apache.logging.log4j.core.parser.TextLogEventParser;
 import org.apache.logging.log4j.message.SimpleMessage;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -37,12 +38,20 @@ public class GsonTemplateLayoutLogEventParser implements TextLogEventParser {
 	@Override
 	public LogEvent parseFrom(final String input) throws ParseException {
 		final JsonObject jsonObject = JsonParser.parseString(input).getAsJsonObject();
+		final JsonElement timestamp = jsonObject.get("@timestamp");
+		final JsonElement logLevel = jsonObject.get("log.level");
+		final JsonElement message = jsonObject.get("message");
+		final JsonElement threadName = jsonObject.get("process.thread.name");
+		final JsonElement loggerName = jsonObject.get("log.logger");
+		if (message == null) {
+			throw new NullPointerException("Invalid json, can't found message : " + input);
+		}
 		return Log4jLogEvent.newBuilder()
-				.setTimeMillis(Instant.parse(jsonObject.get("@timestamp").getAsString()).toEpochMilli())
-				.setLevel(Level.toLevel(jsonObject.get("log.level").getAsString()))
-				.setMessage(new SimpleMessage(jsonObject.get("message").getAsString()))
-				.setThreadName(jsonObject.get("process.thread.name").getAsString())
-				.setLoggerName(jsonObject.get("log.logger").getAsString())
+				.setTimeMillis((timestamp != null ? Instant.parse(timestamp.getAsString()) : Instant.now()).toEpochMilli())
+				.setLevel(logLevel != null ? Level.toLevel(logLevel.getAsString()) : Level.INFO)
+				.setMessage(new SimpleMessage(message.getAsString()))
+				.setThreadName(threadName != null ? threadName.getAsString() : "main")
+				.setLoggerName(threadName != null ? loggerName.getAsString() : "undefined")
 				.build();
 	}
 

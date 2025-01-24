@@ -107,7 +107,7 @@ public class Log4j2TempoProcessAppender extends AbstractAppender {
 	}
 
 	private void sendProcess(final TraceSpan process, final String appName, final String host) {
-		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.12.0");
+		final var openTelemetryTracer = openTelemetry.getTracer("vertigo-analytics", "0.13.1");
 		final var rootSpan = openTelemetryTracer
 				.spanBuilder(process.getName())
 				.setNoParent()

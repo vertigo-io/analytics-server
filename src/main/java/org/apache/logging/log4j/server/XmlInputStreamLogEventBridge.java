@@ -18,6 +18,7 @@ package org.apache.logging.log4j.server;
 
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.parser.XmlLogEventParser;
@@ -32,7 +33,7 @@ public class XmlInputStreamLogEventBridge extends InputStreamLogEventBridge {
 	private static final String EVENT_START_NS_Y = "<Event ";
 
 	public XmlInputStreamLogEventBridge() {
-		this(1024, Charset.defaultCharset());
+		this(1024, StandardCharsets.UTF_8);
 	}
 
 	public XmlInputStreamLogEventBridge(final int bufferSize, final Charset charset) {

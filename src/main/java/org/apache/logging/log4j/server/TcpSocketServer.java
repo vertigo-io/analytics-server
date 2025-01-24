@@ -23,10 +23,13 @@ import java.io.OptionalDataException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.parser.ParseException;
 import org.apache.logging.log4j.core.util.Closer;
 import org.apache.logging.log4j.core.util.Log4jThread;
@@ -41,34 +44,77 @@ import org.apache.logging.log4j.message.EntryMessage;
  */
 public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer<T> {
 
+	private static final int CLIENT_SOCKET_READ_TIMEOUT = 5 * 60 * 1000; //client socket read, timeout = 5min : should wait for client to flush buffer
+	private static final int SERVER_SOCKET_ACCEPT_TIMEOUT = 0; //accept socket timeout = 0=infinite : must wait for new connections
+
+	private final ConcurrentMap<Long, SocketHandler> handlers = new ConcurrentHashMap<>();
+
+	private final ServerSocket serverSocket;
+
 	/**
 	 * Thread that processes the events.
 	 */
 	private class SocketHandler extends Log4jThread {
-
-		private final T inputStream;
+		protected final Logger logger;
 		private final Socket socket;
 
 		private volatile boolean shutdown = false;
 
-		public SocketHandler(final Socket socket) throws IOException {
+		public SocketHandler(final Socket socket) {
+			//this constructor must be safe : may lock sockets' receiver thread and no more connections could be accepted
 			this.socket = socket;
-			this.inputStream = logEventInput.wrapStream(socket.getInputStream());
+			this.logger = LogManager.getLogger(this.getClass().getSimpleName() + socket.getInetAddress() + ':' + socket.getPort() + "->" + socket.getLocalPort());
+			logger.debug("Create SocketHandler");
 		}
 
 		@Override
 		public void run() {
 			final EntryMessage entry = logger.traceEntry();
+			long lastReceiveLogTime = 0;
+			long deltaPacketsReceived = 0;
 			boolean closed = false;
+			final T inputStream;
+			String socketMode = "UNKNOWN";
+
 			try {
+				logger.debug("Init SocketHandler, wrap inputStream");
 				try {
+					inputStream = logEventInput.wrapStream(socket.getInputStream());
+				} catch (final IOException e) {
+					logger.error("IOException encountered while initializing socket", e);
+					return;
+				}
+				if (inputStream instanceof DelimitedInputStream) {
+					socketMode = logEventInput.getClass().getSimpleName() + " mode:" + ((DelimitedInputStream) inputStream).getCompressionType();
+				} else {
+					socketMode = logEventInput.getClass().getSimpleName() + " mode: NONE";
+				}
+				logger.debug("Ready SocketHandler with {}", socketMode);
+
+				try {
+					logger.info("Start listening events with {}", socketMode);
 					while (!shutdown) {
-						logEventInput.logEvents(inputStream, TcpSocketServer.this);
+						logger.debug("Listening events");
+						deltaPacketsReceived += logEventInput.logEvents(inputStream, TcpSocketServer.this);
+						if (logger.isDebugEnabled()) {
+							logger.debug("Received {} batchs events", deltaPacketsReceived);
+							deltaPacketsReceived = 0;
+						} else if (System.currentTimeMillis() - lastReceiveLogTime > 5 * 60 * 1000) { //log every 5 minutes
+							logger.info("Received {} batchs events", deltaPacketsReceived);
+							lastReceiveLogTime = System.currentTimeMillis();
+							deltaPacketsReceived = 0;
+						}
 					}
 				} catch (final EOFException e) {
 					closed = true;
 				} catch (final OptionalDataException e) {
 					logger.error("OptionalDataException eof=" + e.eof + " length=" + e.length, e);
+				} catch (final SocketException e) {
+					if (e.getMessage().contains("Connection reset")) {
+						closed = true; //juste client close connection
+					} else {
+						logger.error("IOException encountered while reading from socket", e);
+					}
 				} catch (final IOException e) {
 					logger.error("IOException encountered while reading from socket", e);
 				} catch (final ParseException e) {
@@ -79,6 +125,9 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 				}
 			} finally {
 				handlers.remove(Long.valueOf(getId()));
+				logger.info("Received {} batchs events", deltaPacketsReceived);
+				logger.info("Stop listening events with {}", socketMode);
+				Closer.closeSilently(socket);
 			}
 			logger.traceExit(entry);
 		}
@@ -91,10 +140,6 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			interrupt();
 		}
 	}
-
-	private final ConcurrentMap<Long, SocketHandler> handlers = new ConcurrentHashMap<>();
-
-	private final ServerSocket serverSocket;
 
 	/**
 	 * Constructor.
@@ -113,7 +158,17 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 */
 	@SuppressWarnings("resource")
 	public TcpSocketServer(final int port, final int backlog, final InetAddress localBindAddress, final LogEventBridge<T> logEventInput) throws IOException {
-		this(port, logEventInput, new ServerSocket(port, backlog, localBindAddress));
+		this(port, logEventInput, createServerSocket(port, backlog, localBindAddress));
+	}
+
+	private static ServerSocket createServerSocket(final int port, final int backlog, final InetAddress localBindAddress) throws IOException {
+		final ServerSocket serverSocket = new ServerSocket(port, backlog, localBindAddress);
+		serverSocket.setSoTimeout(SERVER_SOCKET_ACCEPT_TIMEOUT);
+		return serverSocket;
+	}
+
+	private static ServerSocket createServerSocket(final int port) throws IOException {
+		return createServerSocket(port, 50, null);
 	}
 
 	/**
@@ -128,7 +183,7 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 	 */
 	@SuppressWarnings("resource")
 	public TcpSocketServer(final int port, final LogEventBridge<T> logEventInput) throws IOException {
-		this(port, logEventInput, new ServerSocket(port));
+		this(port, logEventInput, createServerSocket(port));
 	}
 
 	/**
@@ -161,16 +216,19 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			}
 			try {
 				// Accept incoming connections.
-				logger.debug("Listening for a connection {}...", serverSocket);
+				logger.info("Listening for a connection {}...", serverSocket);
 				@SuppressWarnings("resource") // clientSocket is closed during SocketHandler shutdown
-				final Socket clientSocket = serverSocket.accept();
-				logger.debug("Acepted connection on {}...", serverSocket);
-				logger.debug("Socket accepted: {}", clientSocket);
-				clientSocket.setSoLinger(true, 0);
+				final Socket clientSocket = serverSocket.accept(); //use soTimeout socket parameter
+				logger.debug("Accepted connection on {}...", serverSocket);
 
 				// accept() will block until a client connects to the server.
 				// If execution reaches this point, then it means that a client
 				// socket has been accepted.
+
+				logger.info("Socket accepted: {}", clientSocket);
+				//Must defined socket parameters
+				clientSocket.setSoLinger(true, 0); //define that close will be force to close immediatly
+				clientSocket.setSoTimeout(CLIENT_SOCKET_READ_TIMEOUT);
 
 				final SocketHandler handler = new SocketHandler(clientSocket);
 				handlers.put(Long.valueOf(handler.getId()), handler);
@@ -178,10 +236,14 @@ public class TcpSocketServer<T extends InputStream> extends AbstractSocketServer
 			} catch (final IOException e) {
 				if (serverSocket.isClosed()) {
 					// OK we're done.
-					logger.traceExit(entry);
 					return;
 				}
-				logger.error("Exception encountered on accept. Ignoring. Stack trace :", e);
+				if (e.getMessage().equals("Connection reset")) {
+					//simpler log for standard exceptions
+					logger.info("Exception encountered on accept. Ignoring. Message: {}", e.getMessage());
+				} else {
+					logger.error("Exception encountered on accept. Ignoring. Stack trace :", e);
+				}
 			}
 		}
 		for (final Map.Entry<Long, SocketHandler> handlerEntry : handlers.entrySet()) {

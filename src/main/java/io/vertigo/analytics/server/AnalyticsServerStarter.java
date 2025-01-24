@@ -66,8 +66,14 @@ public class AnalyticsServerStarter {
 					break;
 				case "log4j2json":
 					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
-					final TcpSocketServer jsoncpSocketServer = AnalyticsTcpSocketServer.createJsonSocketServer(Integer.parseInt(port), true);
-					jsoncpSocketServer.startNewThread();
+					final TcpSocketServer jsonTcpSocketServer = AnalyticsTcpSocketServer.createJsonSocketServer(Integer.parseInt(port), false);
+					jsonTcpSocketServer.startNewThread();
+					isLog4jEnabled = true;
+					break;
+				case "log4j2json-gz":
+					Configurator.initialize("definedLog4jContext", AnalyticsServerStarter.class.getClassLoader(), configFile);
+					final TcpSocketServer jsonCompressedTcpSocketServer = AnalyticsTcpSocketServer.createJsonSocketServer(Integer.parseInt(port), true);
+					jsonCompressedTcpSocketServer.startNewThread();
 					isLog4jEnabled = true;
 					break;
 				case "log4j2jsonSsl":

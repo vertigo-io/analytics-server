@@ -6,8 +6,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.influxdb.client.domain.WritePrecision;
@@ -22,13 +24,17 @@ public class InfluxdbUtil {
 
 	private static final String TAG_NAME = "name";
 	private static final String TAG_LOCATION = "location";
-	private static final AtomicInteger nanoSeq = new AtomicInteger();
+	private static final AtomicInteger nanoSeq = new AtomicInteger(); //% 99999
+	private static final AtomicInteger tracesSlotSeq = new AtomicInteger(); // slot/partitioning tag for easy downscale traces % 19
+	private static final AtomicInteger healthSlotSeq = new AtomicInteger(); // slot/partitioning tag for easy downscale heath % 19
+	private static final AtomicInteger metricsSlotSeq = new AtomicInteger(); // slot/partitioning tag for easy downscale metrics % 19
+	private static final String TAG_DATA_SLOT = "dataSlot";
 
 	private InfluxdbUtil() {
 		// Util
 	}
 
-	public static List<Point> heathCheckToPoints(final HealthCheck healthCheck, final String host) {
+	public static List<Point> healthCheckToPoints(final HealthCheck healthCheck, final String host) {
 
 		final String message = healthCheck.healthMeasure().message();
 		final String messageToStore = message != null ? message : "";
@@ -44,6 +50,7 @@ public class InfluxdbUtil {
 				.addField("message", messageToStore)
 				.addTag("location", host)
 				.addTag("name", healthCheck.name())
+				.addTag(TAG_DATA_SLOT, nextHealthSlotRoundRobin())
 				.addTag("checker", healthCheck.checker())
 				.addTag("module", healthCheck.module())
 				.addTag("feature", healthCheck.feature())
@@ -64,13 +71,14 @@ public class InfluxdbUtil {
 				.addField("value", metric.value())
 				.addTag("location", host)
 				.addTag("name", metric.name())
+				.addTag(TAG_DATA_SLOT, nextMetricsSlotRoundRobin())
 				.addTag("module", moduleToStore)
 				.addTag("feature", metric.feature()));
 	}
 
 	public static List<Point> processToPoints(final TraceSpan process, final String host) {
 		final List<Point> points = new ArrayList<>();
-		flatProcess(process, new Stack<>(), points, host);
+		flatProcess(process, new Stack<>(), points, host, nextTraceSlotRoundRobin());
 		return points;
 	}
 
@@ -87,11 +95,11 @@ public class InfluxdbUtil {
 		}
 	}
 
-	private static Point processToPoint(final TraceSpan process, final VisitState visitState, final String host) {
+	private static Point processToPoint(final TraceSpan process, final VisitState visitState, final String host, final String traceSlot) {
 		final Map<String, Object> countFields = visitState.getCountsByCategory().entrySet().stream()
-				.collect(Collectors.toMap((entry) -> entry.getKey() + "_count", (entry) -> entry.getValue()));
+				.collect(Collectors.toMap(entry -> entry.getKey() + "_count", (Function<? super Entry<String, Integer>, ? extends Object>) Entry::getValue));
 		final Map<String, Object> durationFields = visitState.getDurationsByCategory().entrySet().stream()
-				.collect(Collectors.toMap((entry) -> entry.getKey() + "_duration", (entry) -> entry.getValue()));
+				.collect(Collectors.toMap(entry -> entry.getKey() + "_duration", (Function<? super Entry<String, Long>, ? extends Object>) Entry::getValue));
 
 		// we add a inner duration for convinience
 		final long innerDuration = process.getDurationMillis() - process.getChildSpans()
@@ -100,12 +108,14 @@ public class InfluxdbUtil {
 
 		final Map<String, String> properedTags = process.getTags().entrySet()
 				.stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
 				.collect(Collectors.toMap(
 						entry -> properString(entry.getKey()),
 						entry -> properString(entry.getValue())));
 
 		final Map<String, String> properedMetadatas = process.getMetadatas().entrySet()
 				.stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
 				.collect(Collectors.toMap(
 						entry -> properString(entry.getKey()),
 						entry -> properString(entry.getValue())));
@@ -114,10 +124,11 @@ public class InfluxdbUtil {
 				.time(epochMilliToUniqueInstant(Instant.ofEpochMilli(process.getStart())), WritePrecision.NS)
 				.addTag(TAG_NAME, properString(process.getName()))
 				.addTag(TAG_LOCATION, host)
+				.addTag(TAG_DATA_SLOT, String.valueOf(traceSlot))
 				.addTags(properedTags)
 				.addField("duration", process.getDurationMillis())
 				.addField("subprocesses", process.getChildSpans().size())
-				.addField("name", properString(process.getName()))
+				//.addField("name", properString(process.getName())) //redundant with TAG_NAME
 				.addField("inner_duration", innerDuration)
 				.addFields(countFields)
 				.addFields(durationFields)
@@ -125,23 +136,24 @@ public class InfluxdbUtil {
 				.addFields((Map) properedMetadatas);
 	}
 
-	private static VisitState flatProcess(final TraceSpan process, final Stack<String> upperCategory, final List<Point> points, final String host) {
+	private static VisitState flatProcess(final TraceSpan process, final Stack<String> upperCategory, final List<Point> points, final String host, final String traceSlot) {
 		final VisitState visitState = new InfluxdbUtil.VisitState(upperCategory);
 		process.getChildSpans().stream()
 				.forEach(subProcess -> {
 					visitState.push(subProcess);
 					//on descend => stack.push
-					final VisitState childVisiteState = flatProcess(subProcess, upperCategory, points, host);
+					final VisitState childVisiteState = flatProcess(subProcess, upperCategory, points, host, traceSlot);
 					visitState.merge(childVisiteState);
 					//on remonte => stack.poll
 					visitState.pop();
 				});
-		points.add(processToPoint(process, visitState, host));
+		points.add(processToPoint(process, visitState, host, traceSlot));
 		return visitState;
 
 	}
 
 	static class VisitState {
+
 		private final Map<String, Integer> countsByCategory = new HashMap<>();
 		private final Map<String, Long> durationsByCategory = new HashMap<>();
 		private final Stack<String> stack;
@@ -158,9 +170,9 @@ public class InfluxdbUtil {
 
 		void merge(final VisitState visitState) {
 			visitState.durationsByCategory.entrySet()
-					.forEach((entry) -> incDurations(entry.getKey(), entry.getValue()));
+					.forEach(entry -> incDurations(entry.getKey(), entry.getValue()));
 			visitState.countsByCategory.entrySet()
-					.forEach((entry) -> incCounts(entry.getKey(), entry.getValue()));
+					.forEach(entry -> incCounts(entry.getKey(), entry.getValue()));
 		}
 
 		void pop() {
@@ -199,14 +211,26 @@ public class InfluxdbUtil {
 
 	private static String properString(final String string) {
 		if (string == null) {
-			return string;
+			return ""; //can't send null to influxDb
 		}
-		return string.replaceAll("\n", " ");
+		return string.replace('\n', ' ');
 	}
 
 	private static Instant epochMilliToUniqueInstant(final Instant measureTime) {
 		final var nano = nanoSeq.updateAndGet(i -> ++i % 99999) + 1;
 		return measureTime.plusNanos(nano);
+	}
+
+	private static String nextTraceSlotRoundRobin() {
+		return String.valueOf(tracesSlotSeq.updateAndGet(i -> ++i % 19) + 1);
+	}
+
+	private static String nextMetricsSlotRoundRobin() {
+		return String.valueOf(metricsSlotSeq.updateAndGet(i -> ++i % 19) + 1);
+	}
+
+	private static String nextHealthSlotRoundRobin() {
+		return String.valueOf(healthSlotSeq.updateAndGet(i -> ++i % 19) + 1);
 	}
 
 }

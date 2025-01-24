@@ -174,7 +174,7 @@ public abstract class AbstractSocketServer<T extends InputStream> extends LogEve
 	 *            Use this input to read log events.
 	 */
 	public AbstractSocketServer(final int port, final LogEventBridge<T> logEventInput) {
-		this.logger = LogManager.getLogger(this.getClass().getName() + '.' + port);
+		this.logger = LogManager.getLogger(this.getClass().getSimpleName() + ':' + port);
 		this.logEventInput = Objects.requireNonNull(logEventInput, "LogEventInput");
 	}
 

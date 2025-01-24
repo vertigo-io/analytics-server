@@ -16,8 +16,11 @@
  */
 package org.apache.logging.log4j.server;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.Charset;
 
 import org.apache.logging.log4j.core.LogEvent;
@@ -49,21 +52,26 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 	abstract protected int[] getEventIndices(final String text, int beginIndex);
 
 	@Override
-	public void logEvents(final InputStream inputStream, final LogEventListener logEventListener)
-			throws IOException, ParseException {
+	public int logEvents(final InputStream inputStream, final LogEventListener logEventListener) throws IOException, ParseException {
+		int nbEvents = 0;
 		String workingText = Strings.EMPTY;
 		try {
+			final Reader inReader = new InputStreamReader(inputStream, charset);
+
 			// Allocate buffer once
-			final byte[] buffer = new byte[bufferSize];
+			final char[] buffer = new char[bufferSize];
 			String textRemains = workingText = Strings.EMPTY;
 			while (true) {
 				// Process until the stream is EOF.
-				final int streamReadLength = inputStream.read(buffer);
+				final int streamReadLength = inReader.read(buffer);
 				if (streamReadLength == END) {
 					// The input stream is EOF
+					if (workingText.isEmpty()) {
+						throw new EOFException("Socket closed");
+					}
 					break;
 				}
-				final String text = workingText = textRemains + new String(buffer, 0, streamReadLength, charset);
+				final String text = workingText = textRemains + new String(buffer, 0, streamReadLength);
 				int beginIndex = 0;
 				while (true) {
 					// Extract and log all XML events in the buffer
@@ -81,6 +89,7 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 						final String textEvent = workingText = text.substring(eventStartMarkerIndex, eventEndXmlIndex);
 						final LogEvent logEvent = unmarshal(textEvent);
 						logEventListener.log(logEvent);
+						nbEvents++;
 						beginIndex = eventEndXmlIndex;
 					} else {
 						// No more events or partial XML only in the buffer.
@@ -90,8 +99,12 @@ public abstract class InputStreamLogEventBridge extends AbstractLogEventBridge<I
 					}
 				}
 			}
+			return nbEvents;
+		} catch (final EOFException ex) {
+			//close silently
+			throw ex;
 		} catch (final IOException ex) {
-			logger.warn(ex.getMessage() + " on: " + workingText);
+			logger.warn(ex.getMessage() + " last read: " + workingText);
 			throw ex;
 		}
 	}

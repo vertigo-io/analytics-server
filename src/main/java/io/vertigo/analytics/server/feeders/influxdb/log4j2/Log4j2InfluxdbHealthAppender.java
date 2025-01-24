@@ -33,7 +33,7 @@ public class Log4j2InfluxdbHealthAppender extends AbstractLog4j2InfluxdbAppender
 
 	@Override
 	protected List<Point> eventToPoints(final HealthCheck healthCheck, final String host) {
-		return InfluxdbUtil.heathCheckToPoints(healthCheck, host);
+		return InfluxdbUtil.healthCheckToPoints(healthCheck, host);
 	}
 
 	@Override

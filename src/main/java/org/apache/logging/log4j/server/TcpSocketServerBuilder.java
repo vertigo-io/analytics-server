@@ -18,7 +18,6 @@ package org.apache.logging.log4j.server;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.List;
@@ -132,9 +131,9 @@ public class TcpSocketServerBuilder<T extends InputStream> {
 	 * @throws IOException
 	 *         if an I/O error occurs when opening the socket.
 	 */
-	public static TcpSocketServer<ObjectInputStream> createSerializedSocketServer(final int port) throws IOException {
+	public static TcpSocketServer<InputStream> createSerializedSocketServer(final int port) throws IOException {
 		LOGGER.entry(port);
-		final TcpSocketServer<ObjectInputStream> socketServer = new TcpSocketServer<>(port, new CompressibleFilteredObjectInputStreamLogEventBridge(false));
+		final TcpSocketServer<InputStream> socketServer = new TcpSocketServer<>(port, new CompressibleFilteredObjectInputStreamLogEventBridge(false));
 		return LOGGER.exit(socketServer);
 	}
 
@@ -152,7 +151,7 @@ public class TcpSocketServerBuilder<T extends InputStream> {
 	 *         if an I/O error occurs when opening the socket.
 	 * @since 2.7
 	 */
-	public static TcpSocketServer<ObjectInputStream> createSerializedSocketServer(final int port, final int backlog,
+	public static TcpSocketServer<InputStream> createSerializedSocketServer(final int port, final int backlog,
 			final InetAddress localBindAddress) throws IOException {
 		return createSerializedSocketServer(port, backlog, localBindAddress, Collections.<String> emptyList());
 	}
@@ -172,10 +171,10 @@ public class TcpSocketServerBuilder<T extends InputStream> {
 	 *         if an I/O error occurs when opening the socket.
 	 * @since 2.8.2
 	 */
-	public static TcpSocketServer<ObjectInputStream> createSerializedSocketServer(
+	public static TcpSocketServer<InputStream> createSerializedSocketServer(
 			final int port, final int backlog, final InetAddress localBindAddress, final List<String> allowedClasses) throws IOException {
 		LOGGER.entry(port);
-		final TcpSocketServer<ObjectInputStream> socketServer = new TcpSocketServer<>(port, backlog, localBindAddress,
+		final TcpSocketServer<InputStream> socketServer = new TcpSocketServer<>(port, backlog, localBindAddress,
 				new CompressibleFilteredObjectInputStreamLogEventBridge(allowedClasses, false));
 		return LOGGER.exit(socketServer);
 	}
